@@ -156,7 +156,9 @@ const StudentDashboard = () => {
             'Current Status': row['Status'] || row['Current Status'] || row['Students Status'],
             'Dropout Date': row['Dropout Date'],
             Address: row['Address'],
-            Phone: row['Student Phone Number '] || row['Phone'],
+            'Local Area': row['Local Area'] || row['Locak Area'] || row['LocalArea'],
+            'Panchayat/city': row['Panchayat / City'] || row['Panchayat/city'] || row['City'],
+            Phone: row['Student Phone Number '] || row['Phone'] || row['Contact Number 1'],
             'Parent Info': `${row['Faather Name '] || ''} / ${row['Parents Phone number '] || ''}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
             Feedback: row['Feedback Update'] || ''
           })).filter(s => s.Name && s.Name !== 'Unknown');
@@ -290,13 +292,14 @@ const StudentDashboard = () => {
               ]}
             />
             <InfoCard
-              title="Academic Information"
+              title="Academic & Area Info"
               icon={<BookOpen className="w-6 h-6 text-indigo-500" />}
               items={[
                 { label: 'Education / Level', value: selectedStudent.Education },
                 { label: 'School / Category', value: selectedStudent.School },
                 { label: 'House', value: selectedStudent.House },
-                { label: 'Team / Leader', value: selectedStudent.Team },
+                { label: 'Local Area', value: selectedStudent['Local Area'] },
+                { label: 'Panchayat / City', value: selectedStudent['Panchayat/city'] },
                 { label: 'Student Type', value: selectedStudent['Student Type'] }
               ]}
             />
