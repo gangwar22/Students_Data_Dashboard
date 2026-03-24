@@ -133,51 +133,70 @@ const StudentDashboard = () => {
     }
   };
 
-  const fetchCSV = (url) => {
+  const fetchCSV = async (url) => {
     setLoading(true);
     setError(null);
-    Papa.parse(url, {
-      download: true,
-      header: true,
-      skipEmptyLines: true,
-      complete: (results) => {
-        if (results.data && results.data.length > 0) {
-          const mappedData = results.data.map(row => ({
-            Name: row['Name '] || row['Name'] || 'Unknown',
-            Email: row['Email'],
-            Gender: row['Gender '] || row['Gender'] || row['`Gender'],
-            'Joining Date': row['Joining Date '] || row['Joining Date'],
-            'Joining Month': row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'],
-            Education: row['Education'] || row['Students Level'],
-            House: row['Students House'] || row['House'],
-            Team: row['Team '] || row['Team'] || row['Leader'],
-            School: row['School'] || row['SOP/SOB'],
-            'Student Type': row['Students OLD & NEW'] || row['Student Type'],
-            'Current Status': row['Status'] || row['Current Status'] || row['Students Status'],
-            'Dropout Date': row['Dropout Date'],
-            Address: row['Address'],
-            'Local Area': row['Local Area'] || row['Locak Area'] || row['LocalArea'],
-            'Panchayat/city': row['Panchayat / City'] || row['Panchayat/city'] || row['City'],
-            Phone: row['Student Phone Number '] || row['Phone'] || row['Contact Number 1'],
-            'Parent Info': `${row['Faather Name '] || ''} / ${row['Parents Phone number '] || ''}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
-            Feedback: row['Feedback Update'] || ''
-          })).filter(s => s.Name && s.Name !== 'Unknown');
-
-          if (mappedData.length > 0) {
-            setStudents(mappedData);
-          } else {
-            setError("No valid student data found in the CSV.");
-          }
-        } else {
-          setError("No data found in the CSV. Please check the structure.");
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch CSV.");
+      const text = await response.text();
+      
+      let lines = text.split('\n');
+      // For the first sheet (gid=993432848), the actual headers are on line 4 (index 3)
+      if (activeTab.id === 'main') {
+        const headerRowIdx = lines.findIndex(line => line.includes('S No') && line.includes('Name'));
+        if (headerRowIdx !== -1) {
+          lines = lines.slice(headerRowIdx);
         }
-        setLoading(false);
-      },
-      error: (error) => {
-        setError(`Failed to fetch CSV: ${error.message}`);
-        setLoading(false);
       }
-    });
+
+      const csvStr = lines.join('\n');
+      
+      Papa.parse(csvStr, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.data && results.data.length > 0) {
+            const mappedData = results.data.map(row => ({
+              Name: (row['Name '] || row['Name'] || row['Name  '] || '').trim() || 'Unknown',
+              Email: row['Email'],
+              Gender: row['Gender '] || row['Gender'] || row['`Gender'],
+              'Joining Date': row['Joining Date '] || row['Joining Date'],
+              'Joining Month': row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'],
+              Education: row['Education'] || row['Students Level'],
+              House: row['Students House'] || row['House'],
+              Team: row['Team '] || row['Team'] || row['Leader'] || row['Team (AA)'],
+              School: row['School'] || row['SOP/SOB'],
+              'Student Type': row['Students OLD & NEW'] || row['Student Type'],
+              'Current Status': row['Status'] || row['Current Status'] || row['Students Status'],
+              'Dropout Date': row['Dropout Date'],
+              Address: row['Address'],
+              'Local Area': row['Local Area'] || row['Locak Area'] || row['LocalArea'],
+              'Panchayat/city': row['Panchayat / City'] || row['Panchayat/city'] || row['City'],
+              Phone: row['Student Phone Number '] || row['Phone'] || row['Contact Number 1'],
+              'Parent Info': `${row['Faather Name '] || ''} / ${row['Parents Phone number '] || ''}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
+              Feedback: row['Feedback Update'] || row['Where is improvement needed?'] || ''
+            })).filter(s => s.Name && s.Name !== 'Unknown' && s.Name.toLowerCase() !== 'name');
+
+            if (mappedData.length > 0) {
+              setStudents(mappedData);
+            } else {
+              setError("No valid student data found in the CSV.");
+            }
+          } else {
+            setError("No data found in the CSV. Please check the structure.");
+          }
+          setLoading(false);
+        },
+        error: (error) => {
+          setError(`Failed to fetch CSV: ${error.message}`);
+          setLoading(false);
+        }
+      });
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
+      setLoading(false);
+    }
   };
 
   const filteredStudents = useMemo(() => {
@@ -204,7 +223,10 @@ const StudentDashboard = () => {
     const status = (s['Current Status'] || '').toLowerCase().trim();
     return status === 'in' || status === 'active' || status === 'in campus';
   }).length : 0;
-  const boysCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'm' || s.Gender.toLowerCase() === 'male')).length : 0;
+  const dropoutStudents = !isEnglishDashboard ? filteredStudents.filter(s => {
+    const status = (s['Current Status'] || '').toLowerCase().trim();
+    return status.includes('drop-out') || status.includes('dropout') || status.includes('in-active');
+  }).length : 0;
   const girlsCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'f' || s.Gender.toLowerCase() === 'female')).length : 0;
 
   // English Metrics
@@ -454,10 +476,10 @@ const StudentDashboard = () => {
                   colorTheme="emerald"
                 />
                 <MetricCard
-                  title="Total Boys"
-                  value={boysCount}
-                  icon={<UserCheck />}
-                  colorTheme="blue"
+                  title="Inactive / Dropouts"
+                  value={dropoutStudents}
+                  icon={<UserX />}
+                  colorTheme="red"
                 />
                 <MetricCard
                   title="Total Girls"
