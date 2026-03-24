@@ -285,6 +285,16 @@ const StudentDashboard = () => {
   const uniqueTeams = [...new Set(students.map(s => s.Team).filter(Boolean))].sort();
   const uniqueStudentTypes = !isEnglishDashboard ? [...new Set(students.map(s => s.School).filter(Boolean))].sort() : [];
 
+  // Previous month for comparison
+  const prevMonth = useMemo(() => {
+    if (!isEnglishDashboard) return null;
+    const currentIndex = ENGLISH_MONTHS.findIndex(m => m.id === activeEnglishMonth.id);
+    if (currentIndex !== -1 && currentIndex < ENGLISH_MONTHS.length - 1) {
+      return ENGLISH_MONTHS[currentIndex + 1];
+    }
+    return null;
+  }, [isEnglishDashboard, activeEnglishMonth]);
+
   if (selectedStudent) {
     return (
       <SelectedStudentProfile 
@@ -369,6 +379,9 @@ const StudentDashboard = () => {
             filteredStudents={filteredStudents}
             isEnglishDashboard={isEnglishDashboard}
             setSelectedStudent={setSelectedStudent}
+            currentMonthLabel={activeEnglishMonth.label}
+            prevMonthUrl={prevMonth?.url}
+            prevMonthLabel={prevMonth?.label}
           />
         </>
       )}

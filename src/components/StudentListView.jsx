@@ -2,17 +2,30 @@ import React from 'react';
 import { Menu } from 'lucide-react';
 import DashboardCharts from './DashboardCharts';
 import StudentTable from './StudentTable';
+import EnglishProgressCharts from './EnglishProgressCharts';
 
 const StudentListView = ({ 
   filteredStudents, 
   isEnglishDashboard, 
-  setSelectedStudent 
+  setSelectedStudent,
+  currentMonthLabel,
+  prevMonthUrl,
+  prevMonthLabel
 }) => {
   if (filteredStudents.length === 0) return null;
 
   return (
     <>
       <DashboardCharts students={filteredStudents} isEnglishData={isEnglishDashboard} />
+
+      {isEnglishDashboard && (
+        <EnglishProgressCharts 
+          currentStudents={filteredStudents}
+          currentMonthLabel={currentMonthLabel}
+          prevMonthUrl={prevMonthUrl}
+          prevMonthLabel={prevMonthLabel}
+        />
+      )}
 
       {isEnglishDashboard && (
         <div className="flex flex-wrap gap-4 mt-6 items-center bg-white/60 dark:bg-slate-800/60 p-5 rounded-2xl border-t-2 border-l-2 border-white/80 dark:border-slate-700/50 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] backdrop-blur-xl transition-all duration-300">
