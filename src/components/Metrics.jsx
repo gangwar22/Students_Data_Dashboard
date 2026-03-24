@@ -1,12 +1,12 @@
-import React from 'react';
-import { Users, UserCheck, UserX, GraduationCap, Loader2 } from 'lucide-react';
-import MetricCard from './MetricCard';
+﻿import React from "react";
+import { Users, UserCheck, GraduationCap, Loader2, User } from "lucide-react";
+import MetricCard from "./MetricCard";
 
 const Metrics = ({ 
   isEnglishDashboard, 
   totalStudents, 
   activeStudents, 
-  dropoutStudents, 
+  boysCount, 
   girlsCount, 
   levelBAandAbove, 
   levelA2, 
@@ -31,7 +31,7 @@ const Metrics = ({
       <MetricCard
         title={isEnglishDashboard ? "Tested Students" : "Total Students"}
         value={totalStudents}
-        icon={<Users />}
+        icon={<Users className="w-6 h-6" />}
         colorTheme="blue"
       />
       {isEnglishDashboard ? (
@@ -39,19 +39,19 @@ const Metrics = ({
           <MetricCard
             title="Level B1 & Above"
             value={levelBAandAbove}
-            icon={<UserCheck />}
+            icon={<UserCheck className="w-6 h-6" />}
             colorTheme="purple"
           />
           <MetricCard
             title="Level A2"
             value={levelA2}
-            icon={<GraduationCap />}
+            icon={<GraduationCap className="w-6 h-6" />}
             colorTheme="emerald"
           />
           <MetricCard
             title="A1, A0 & NA"
             value={needsImprovement}
-            icon={<UserX />}
+            icon={<User className="w-6 h-6" />}
             colorTheme="red"
           />
         </>
@@ -60,19 +60,19 @@ const Metrics = ({
           <MetricCard
             title="Active Students"
             value={activeStudents}
-            icon={<UserCheck />}
+            icon={<UserCheck className="w-6 h-6" />}
             colorTheme="emerald"
           />
           <MetricCard
-            title="Inactive / Dropouts"
-            value={dropoutStudents}
-            icon={<UserX />}
-            colorTheme="red"
+            title="Total Boys"
+            value={boysCount}
+            icon={<User className="w-6 h-6 text-blue-500" />}
+            colorTheme="blue"
           />
           <MetricCard
             title="Total Girls"
             value={girlsCount}
-            icon={<GraduationCap />}
+            icon={<GraduationCap className="w-6 h-6 text-pink-500" />}
             colorTheme="purple"
           />
         </>

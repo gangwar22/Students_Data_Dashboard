@@ -11,21 +11,15 @@ const Filters = ({
   setFilterHouse,
   filterStatus,
   setFilterStatus,
-  filterEducation,
-  setFilterEducation,
   filterTeam,
   setFilterTeam,
   filterOverallLevel,
   setFilterOverallLevel,
-  filterStudentType,
-  setFilterStudentType,
   uniqueMonths,
   uniqueHouses,
   uniqueStatuses,
-  uniqueEducations,
   uniqueTeams,
   uniqueLevels,
-  uniqueStudentTypes,
   uniqueMentors,
   clearFilters
 }) => {
@@ -109,20 +103,6 @@ const Filters = ({
           </div>
         )}
 
-        {!isEnglishDashboard && (
-          <div className="relative group">
-            <label className="block text-[11px] font-black text-teal-500 dark:text-teal-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Student Education</label>
-            <select
-              className="w-full px-6 py-4 bg-slate-100\/50 dark:bg-slate-900\/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-teal-500\/10 focus:border-b-teal-500 outline-none transition-all font-bold appearance-none cursor-pointer"
-              value={filterEducation}
-              onChange={(e) => setFilterEducation(e.target.value)}
-            >
-              <option value="">All Educations</option>
-              {uniqueEducations.map(edu => <option key={edu} value={edu}>{edu}</option>)}
-            </select>
-          </div>
-        )}
-
         <div className="relative group">
           <label className="block text-[11px] font-black text-pink-500 dark:text-pink-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Team / Mentor</label>
           <select
@@ -137,20 +117,6 @@ const Filters = ({
             }
           </select>
         </div>
-
-        {!isEnglishDashboard && (
-          <div className="relative group">
-            <label className="block text-[11px] font-black text-cyan-500 dark:text-cyan-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">School / Category</label>
-            <select
-              className="w-full px-6 py-4 bg-slate-100\/50 dark:bg-slate-900\/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-cyan-500\/10 focus:border-b-cyan-500 outline-none transition-all font-bold appearance-none cursor-pointer"
-              value={filterStudentType}
-              onChange={(e) => setFilterStudentType(e.target.value)}
-            >
-              <option value="">All Types</option>
-              {uniqueStudentTypes.map(type => <option key={type} value={type}>{type}</option>)}
-            </select>
-          </div>
-        )}
 
         <div className="flex items-end">
           <button

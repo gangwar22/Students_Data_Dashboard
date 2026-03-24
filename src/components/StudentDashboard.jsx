@@ -47,10 +47,8 @@ const StudentDashboard = () => {
   const [filterMonth, setFilterMonth] = useState('');
   const [filterHouse, setFilterHouse] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
-  const [filterEducation, setFilterEducation] = useState('');
   const [filterTeam, setFilterTeam] = useState('');
   const [filterOverallLevel, setFilterOverallLevel] = useState('');
-  const [filterStudentType, setFilterStudentType] = useState('');
 
   useEffect(() => {
     const isDark = localStorage.getItem('theme') === 'dark' ||
@@ -78,10 +76,8 @@ const StudentDashboard = () => {
     setFilterMonth('');
     setFilterHouse('');
     setFilterStatus('');
-    setFilterEducation('');
     setFilterTeam('');
     setFilterOverallLevel('');
-    setFilterStudentType('');
   };
 
   useEffect(() => {
@@ -235,14 +231,12 @@ const StudentDashboard = () => {
       const matchMonth = filterMonth ? student['Joining Month'] === filterMonth : true;
       const matchHouse = filterHouse ? student.House === filterHouse : true;
       const matchStatus = filterStatus ? student['Current Status'] === filterStatus : true;
-      const matchEducation = filterEducation ? student.Education === filterEducation : true;
       const matchTeam = filterTeam ? (student.Team === filterTeam || student.Mentor === filterTeam) : true;
       const matchLevel = filterOverallLevel ? student['Over All Level'] === filterOverallLevel : true;
-      const matchStudentType = filterStudentType ? (student.School === filterStudentType || student.Education === filterStudentType) : true;
 
-      return matchSearch && matchMonth && matchHouse && matchStatus && matchEducation && matchTeam && matchLevel && matchStudentType;
+      return matchSearch && matchMonth && matchHouse && matchStatus && matchTeam && matchLevel;
     });
-  }, [students, searchQuery, filterMonth, filterHouse, filterStatus, filterEducation, filterTeam, filterOverallLevel, filterStudentType]);
+  }, [students, searchQuery, filterMonth, filterHouse, filterStatus, filterTeam, filterOverallLevel]);
 
   // Derived Metrics
   const isEnglishDashboard = activeTab.id === 'english';
@@ -259,6 +253,8 @@ const StudentDashboard = () => {
   }).length : 0;
 
   const girlsCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'f' || s.Gender.toLowerCase() === 'female')).length : 0;
+
+  const boysCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'm' || s.Gender.toLowerCase() === 'male')).length : 0;
 
   const levelBAandAbove = isEnglishDashboard ? filteredStudents.filter(s => {
     const lvl = (s['Over All Level'] || '').toUpperCase();
@@ -281,9 +277,7 @@ const StudentDashboard = () => {
   const uniqueMonths = !isEnglishDashboard ? [...new Set(students.map(s => s['Joining Month']).filter(Boolean))].sort() : [];
   const uniqueHouses = [...new Set(students.map(s => s.House).filter(Boolean))].sort();
   const uniqueStatuses = [...new Set(students.map(s => s['Current Status']).filter(Boolean))].sort();
-  const uniqueEducations = [...new Set(students.map(s => s.Education).filter(Boolean))].sort();
   const uniqueTeams = [...new Set(students.map(s => s.Team).filter(Boolean))].sort();
-  const uniqueStudentTypes = !isEnglishDashboard ? [...new Set(students.map(s => s.School).filter(Boolean))].sort() : [];
 
   // Previous month for comparison
   const prevMonth = useMemo(() => {
@@ -334,7 +328,7 @@ const StudentDashboard = () => {
         isEnglishDashboard={isEnglishDashboard}
         totalStudents={totalStudents}
         activeStudents={activeStudents}
-        dropoutStudents={dropoutStudents}
+        boysCount={boysCount}
         girlsCount={girlsCount}
         levelBAandAbove={levelBAandAbove}
         levelA2={levelA2}
@@ -356,21 +350,15 @@ const StudentDashboard = () => {
             setFilterHouse={setFilterHouse}
             filterStatus={filterStatus}
             setFilterStatus={setFilterStatus}
-            filterEducation={filterEducation}
-            setFilterEducation={setFilterEducation}
             filterTeam={filterTeam}
             setFilterTeam={setFilterTeam}
             filterOverallLevel={filterOverallLevel}
             setFilterOverallLevel={setFilterOverallLevel}
-            filterStudentType={filterStudentType}
-            setFilterStudentType={setFilterStudentType}
             uniqueMonths={uniqueMonths}
             uniqueHouses={uniqueHouses}
             uniqueStatuses={uniqueStatuses}
-            uniqueEducations={uniqueEducations}
             uniqueTeams={uniqueTeams}
             uniqueLevels={uniqueLevels}
-            uniqueStudentTypes={uniqueStudentTypes}
             uniqueMentors={uniqueMentors}
             clearFilters={clearFilters}
           />
