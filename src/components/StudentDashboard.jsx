@@ -204,10 +204,7 @@ const StudentDashboard = () => {
     const status = (s['Current Status'] || '').toLowerCase().trim();
     return status === 'in' || status === 'active' || status === 'in campus';
   }).length : 0;
-  const dropoutStudents = !isEnglishDashboard ? filteredStudents.filter(s => {
-    const status = (s['Current Status'] || '').toLowerCase().trim();
-    return status.includes('drop-out') || status.includes('dropout') || status.includes('in-active');
-  }).length : 0;
+  const boysCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'm' || s.Gender.toLowerCase() === 'male')).length : 0;
   const girlsCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'f' || s.Gender.toLowerCase() === 'female')).length : 0;
 
   // English Metrics
@@ -457,10 +454,10 @@ const StudentDashboard = () => {
                   colorTheme="emerald"
                 />
                 <MetricCard
-                  title="Inactive / Dropouts"
-                  value={dropoutStudents}
-                  icon={<UserX />}
-                  colorTheme="red"
+                  title="Total Boys"
+                  value={boysCount}
+                  icon={<UserCheck />}
+                  colorTheme="blue"
                 />
                 <MetricCard
                   title="Total Girls"
