@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { Search, FilterX } from "lucide-react";
+import { Search, FilterX, TrendingUp } from "lucide-react";
 
 const Filters = ({
   isEnglishDashboard,
@@ -21,16 +21,43 @@ const Filters = ({
   uniqueTeams,
   uniqueLevels,
   uniqueMentors,
-  clearFilters
+  clearFilters,
+  showProgress,
+  setShowProgress
 }) => {
   return (
     <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-2xl p-8 rounded-[2rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.1),0_6px_0_rgba(203,213,225,0.7)] dark:shadow-[0_15px_40px_-15px_rgba(0,0,0,0.5),0_6px_0_rgba(30,41,59,0.7)] border-t-2 border-l-2 border-white/80 dark:border-slate-700/80 mt-6 transition-colors duration-300">
-      <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 mb-8 flex items-center gap-3 drop-shadow-sm tracking-wide">
-        <div className="p-3 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900\/60 dark:to-purple-900\/60 rounded-xl shadow-inner border border-white\/50 dark:border-slate-700">
-          <FilterX className="w-6 h-6 text-indigo-600 dark:text-indigo-400 drop-shadow-md" />
-        </div>
-        Advanced Data Filters
-      </h3>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 flex items-center gap-3 drop-shadow-sm tracking-wide">
+          <div className="p-3 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/60 dark:to-purple-900/60 rounded-xl shadow-inner border border-white/50 dark:border-slate-700">
+            <FilterX className="w-6 h-6 text-indigo-600 dark:text-indigo-400 drop-shadow-md" />
+          </div>
+          Advanced Data Filters
+        </h3>
+
+        {isEnglishDashboard && (
+          <button
+            onClick={() => setShowProgress(prev => !prev)}
+            className={`px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-[0.15em] transition-all flex items-center gap-3 shadow-xl hover:-translate-y-1 active:translate-y-0 ${
+              showProgress 
+                ? "bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-rose-200 dark:shadow-none"
+                : "bg-gradient-to-br from-indigo-500 to-blue-600 text-white shadow-indigo-200 dark:shadow-none"
+            }`}
+          >
+            {showProgress ? (
+              <>
+                <Search className="w-4 h-4" />
+                View Student Directory
+              </>
+            ) : (
+              <>
+                <TrendingUp className="w-4 h-4" />
+                View Progress Analytics
+              </>
+            )}
+          </button>
+        )}
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-x-8 gap-y-10">
         <div className="relative group">

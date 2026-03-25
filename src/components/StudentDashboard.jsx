@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Papa from 'papaparse';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Trophy, Award, Star, TrendingUp, Loader2 } from 'lucide-react';
 
 // New Components
 import Header from './Header';
@@ -8,6 +8,19 @@ import Metrics from './Metrics';
 import Filters from './Filters';
 import StudentListView from './StudentListView';
 import SelectedStudentProfile from './SelectedStudentProfile';
+import ProgressAnalytics from './ProgressAnalytics';
+
+// ─── Level ordering ────────────────────────────────────────────────────────────
+const LEVEL_ORDER = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"];
+const LEVEL_SCORE = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
+const METRIC_ORDER = ["Reading", "Writing", "Listening", "Speaking"];
+const SKILL_ABBREVIATIONS = { Reading: "R", Writing: "W", Listening: "L", Speaking: "S" };
+
+function normaliseLevel(raw = "") {
+  const up = raw.trim().toUpperCase();
+  const match = LEVEL_ORDER.find(l => up.includes(l));
+  return match || null;
+}
 
 const TABS = [
   { id: 'main', label: 'Main Sheet' },
@@ -37,10 +50,13 @@ const StudentDashboard = () => {
   const [activeTab, setActiveTab] = useState(TABS[0]);
   const [activeEnglishMonth, setActiveEnglishMonth] = useState(ENGLISH_MONTHS[0]);
   const [students, setStudents] = useState([]);
+  const [prevStudents, setPrevStudents] = useState([]);
+  const [loadingPrev, setLoadingPrev] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
 
   // Filters State
   const [searchQuery, setSearchQuery] = useState('');
@@ -80,9 +96,62 @@ const StudentDashboard = () => {
     setFilterOverallLevel('');
   };
 
+  // Previous month for comparison
+  const prevMonth = useMemo(() => {
+    if (activeTab.id !== 'english') return null;
+    const currentIndex = ENGLISH_MONTHS.findIndex(m => m.id === activeEnglishMonth.id);
+    if (currentIndex !== -1 && currentIndex < ENGLISH_MONTHS.length - 1) {
+      return ENGLISH_MONTHS[currentIndex + 1];
+    }
+    return null;
+  }, [activeTab.id, activeEnglishMonth.id]);
+
+  useEffect(() => {
+    if (!prevMonth?.url || activeTab.id !== 'english') { 
+      setPrevStudents([]); 
+      return; 
+    }
+    setLoadingPrev(true);
+    fetch(prevMonth.url)
+      .then(r => r.text())
+      .then(text => {
+        let lines = text.split("\n");
+        const hi = lines.findIndex(l => {
+          const lower = l.toLowerCase();
+          return (lower.includes("student") || lower.includes("name")) && lower.includes("mentor");
+        });
+        if (hi !== -1) lines = lines.slice(hi);
+        Papa.parse(lines.join("\n"), {
+          header: true,
+          skipEmptyLines: true,
+          complete: ({ data }) => {
+            const mapped = data.map(row => {
+               const keys = Object.keys(row);
+               const firstKeyTrigger = keys[0];
+               const nameFromFirstCol = (row[firstKeyTrigger] || '').trim();
+               return {
+                Name: row["Students"] || row["Student"] || row["Name"] || nameFromFirstCol || "",
+                "Over All Level": row["Over All Level"] || row["Overall Level"] || row["Overall"] || "NA",
+                Mentor: row["Mentor"] || row["Mentor "] || "Unknown",
+                Reading: row["Reading"] || "NA",
+                Writing: row["Writing"] || "NA",
+                Listening: row["Listening"] || "NA",
+                Speaking: row["Speaking"] || "NA"
+               };
+            }).filter(s => s.Name && !["students", "name", "student name"].includes(s.Name.toLowerCase()) && s.Mentor !== "Mentor");
+            setPrevStudents(mapped);
+            setLoadingPrev(false);
+          },
+          error: () => setLoadingPrev(false),
+        });
+      })
+      .catch(() => setLoadingPrev(false));
+  }, [prevMonth?.url, activeTab.id]);
+
   useEffect(() => {
     setSelectedStudent(null);
     clearFilters();
+    setShowProgress(false);
     if (activeTab.id === 'english') {
       fetchEnglishCSV(activeEnglishMonth.url);
     } else {
@@ -279,16 +348,6 @@ const StudentDashboard = () => {
   const uniqueStatuses = [...new Set(students.map(s => s['Current Status']).filter(Boolean))].sort();
   const uniqueTeams = [...new Set(students.map(s => s.Team).filter(Boolean))].sort();
 
-  // Previous month for comparison
-  const prevMonth = useMemo(() => {
-    if (!isEnglishDashboard) return null;
-    const currentIndex = ENGLISH_MONTHS.findIndex(m => m.id === activeEnglishMonth.id);
-    if (currentIndex !== -1 && currentIndex < ENGLISH_MONTHS.length - 1) {
-      return ENGLISH_MONTHS[currentIndex + 1];
-    }
-    return null;
-  }, [isEnglishDashboard, activeEnglishMonth]);
-
   if (selectedStudent) {
     return (
       <SelectedStudentProfile 
@@ -338,6 +397,16 @@ const StudentDashboard = () => {
         activeTabLabel={activeTab.label}
       />
 
+      {isEnglishDashboard && loadingPrev && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-1000">
+           <div className="flex flex-col items-center justify-center text-center mb-10 px-2 gap-4">
+              <div className="mt-2 flex items-center gap-2 px-6 py-2.5 bg-indigo-50 dark:bg-indigo-900/40 rounded-full text-xs font-black text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800 animate-pulse shadow-sm">
+                <Loader2 className="w-4 h-4 animate-spin" /> Fetching performance benchmarks...
+              </div>
+           </div>
+        </div>
+      )}
+
       {!loading && (
         <>
           <Filters 
@@ -361,16 +430,27 @@ const StudentDashboard = () => {
             uniqueLevels={uniqueLevels}
             uniqueMentors={uniqueMentors}
             clearFilters={clearFilters}
+            showProgress={showProgress}
+            setShowProgress={setShowProgress}
           />
 
-          <StudentListView 
-            filteredStudents={filteredStudents}
-            isEnglishDashboard={isEnglishDashboard}
-            setSelectedStudent={setSelectedStudent}
-            currentMonthLabel={activeEnglishMonth.label}
-            prevMonthUrl={prevMonth?.url}
-            prevMonthLabel={prevMonth?.label}
-          />
+          {isEnglishDashboard && showProgress ? (
+            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+               <ProgressAnalytics 
+                 onBack={() => setShowProgress(false)}
+                 currentStudents={filteredStudents}
+                 currentMonthLabel={activeEnglishMonth.label}
+                 prevMonthUrl={prevMonth?.url}
+                 prevMonthLabel={prevMonth?.label}
+               />
+            </div>
+          ) : (
+            <StudentListView 
+              filteredStudents={filteredStudents}
+              isEnglishDashboard={isEnglishDashboard}
+              setSelectedStudent={setSelectedStudent}
+            />
+          )}
         </>
       )}
     </div>
