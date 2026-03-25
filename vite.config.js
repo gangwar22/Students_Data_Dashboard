@@ -8,4 +8,14 @@ export default defineConfig({
     tailwindcss(),
     react(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor': ['react', 'react-dom', 'recharts', 'lucide-react', 'papaparse'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
 })
