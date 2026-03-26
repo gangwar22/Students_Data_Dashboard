@@ -11,8 +11,16 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor': ['react', 'react-dom', 'recharts', 'lucide-react', 'papaparse'],
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom')) {
+              return 'vendor-react';
+            }
+            if (id.includes('recharts') || id.includes('lucide-react')) {
+              return 'vendor-ui';
+            }
+            return 'vendor';
+          }
         },
       },
     },
