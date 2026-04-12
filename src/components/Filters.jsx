@@ -3,6 +3,7 @@ import { Search, FilterX, TrendingUp } from "lucide-react";
 
 const Filters = ({
   isEnglishDashboard,
+  isPlacementDashboard = false,
   searchQuery,
   setSearchQuery,
   filterMonth,
@@ -15,6 +16,9 @@ const Filters = ({
   setFilterTeam,
   filterOverallLevel,
   setFilterOverallLevel,
+  filterPlacementBatch = "all",
+  setFilterPlacementBatch = () => {},
+  placementBatchOptions = [],
   uniqueMonths,
   uniqueHouses,
   uniqueStatuses,
@@ -74,7 +78,7 @@ const Filters = ({
           </div>
         </div>
 
-        {!isEnglishDashboard && (
+        {!isEnglishDashboard && !isPlacementDashboard && (
           <div className="relative group">
             <label className="block text-[11px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Joining Month</label>
             <select
@@ -84,6 +88,20 @@ const Filters = ({
             >
               <option value="">All Months</option>
               {uniqueMonths.map(month => <option key={month} value={month}>{month}</option>)}
+            </select>
+          </div>
+        )}
+
+        {isPlacementDashboard && (
+          <div className="relative group">
+            <label className="block text-[11px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Placement Year</label>
+            <select
+              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-b-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+              value={filterPlacementBatch}
+              onChange={(e) => setFilterPlacementBatch(e.target.value)}
+            >
+              <option value="all">All Years</option>
+              {placementBatchOptions.map(batch => <option key={batch} value={batch}>{batch}</option>)}
             </select>
           </div>
         )}

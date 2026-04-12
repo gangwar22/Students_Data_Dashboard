@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Papa from 'papaparse';
 import { AlertCircle, Trophy, Award, Star, TrendingUp, Loader2 } from 'lucide-react';
 
@@ -11,23 +11,19 @@ import SelectedStudentProfile from './SelectedStudentProfile';
 import ProgressAnalytics from './ProgressAnalytics';
 import { Settings, X, Save } from 'lucide-react';
 
-// ─── Level ordering ────────────────────────────────────────────────────────────
+// Level ordering
 const LEVEL_ORDER = ["A0", "A1", "A2", "B1", "B2", "C1", "C2"];
 const LEVEL_SCORE = Object.fromEntries(LEVEL_ORDER.map((l, i) => [l, i]));
 const METRIC_ORDER = ["Reading", "Writing", "Listening", "Speaking"];
 const SKILL_ABBREVIATIONS = { Reading: "R", Writing: "W", Listening: "L", Speaking: "S" };
 
-function normaliseLevel(raw = "") {
-  const up = raw.trim().toUpperCase();
-  const match = LEVEL_ORDER.find(l => up.includes(l));
-  return match || null;
-}
 
 const TABS = [
   { id: 'main', label: 'Main Sheet' },
   { id: 'sop', label: 'SOP Data' },
   { id: 'sob', label: 'SOB Data' },
-  { id: 'english', label: 'English Level' }
+  { id: 'english', label: 'English Level' },
+  { id: 'placement', label: 'Placement Data' }
 ];
 
 const MAIN_URLS = {
@@ -37,6 +33,85 @@ const MAIN_URLS = {
 };
 
 const BASE_ENGLISH_URL = 'https://docs.google.com/spreadsheets/d/1_TeEWuTC6DgkDW5GkY910rLzS4ScFspROQHXpWDVamM/export?format=csv&gid=';
+const PLACEMENT_URLS = {
+  all: 'https://docs.google.com/spreadsheets/d/1cmdSpfLe9Qm_MpxdgBqULdPv9fR8tGRiYNGMbxEWjeI/export?format=csv&gid=0',
+  batch2425: 'https://docs.google.com/spreadsheets/d/1cmdSpfLe9Qm_MpxdgBqULdPv9fR8tGRiYNGMbxEWjeI/export?format=csv&gid=1626127241'
+};
+const PLACEMENT_BATCH_OPTIONS = ['2023', '2024', '2025', '2026'];
+
+const getPlacementUrlForBatch = (batch) => (
+  batch === '2024' || batch === '2025' ? PLACEMENT_URLS.batch2425 : PLACEMENT_URLS.all
+);
+
+const pickFirstValue = (row, keys) => {
+  for (const key of keys) {
+    const value = row[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+  return '';
+};
+
+const extractPlacementYear = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  const fullYearMatch = text.match(/\b(20(?:23|24|25|26))\b/);
+  if (fullYearMatch) return fullYearMatch[1];
+
+  // Handle common typo patterns like 20205, 20204, etc.
+  const typoYearMatch = text.match(/\b2020?([3-6])\b/);
+  if (typoYearMatch) return `202${typoYearMatch[1]}`;
+
+  const shortYearMatch = text.match(/\b(23|24|25|26)\b/);
+  if (shortYearMatch) return `20${shortYearMatch[1]}`;
+
+  // Fallback: extract from compact numeric strings.
+  const digitsOnly = text.replace(/\D/g, '');
+  if (digitsOnly.includes('2023') || digitsOnly.includes('20203')) return '2023';
+  if (digitsOnly.includes('2024') || digitsOnly.includes('20204')) return '2024';
+  if (digitsOnly.includes('2025') || digitsOnly.includes('20205')) return '2025';
+  if (digitsOnly.includes('2026') || digitsOnly.includes('20206')) return '2026';
+
+  const parsed = new Date(text);
+  if (!Number.isNaN(parsed.getTime())) {
+    const parsedYear = String(parsed.getFullYear());
+    if (PLACEMENT_BATCH_OPTIONS.includes(parsedYear)) return parsedYear;
+  }
+
+  return '';
+};
+
+const inferPlacementBatch = (row) => {
+  const fromJobYear = extractPlacementYear(pickFirstValue(row, ['Job Year']));
+  if (fromJobYear) return fromJobYear;
+
+  const fromPlacedDate = extractPlacementYear(pickFirstValue(row, ['Date of leaving - Placed', 'Date of leaving']));
+  if (fromPlacedDate) return fromPlacedDate;
+
+  const fromJoiningDate = extractPlacementYear(pickFirstValue(row, ['Date of joining Campus', 'Date of joining']));
+  if (fromJoiningDate) return fromJoiningDate;
+
+  const email = pickFirstValue(row, ['Email id', 'Mail ID', 'Email']).toLowerCase();
+  const emailMatch = email.match(/(23|24|25|26)@/);
+  if (emailMatch) return `20${emailMatch[1]}`;
+
+  return '';
+};
+
+const getMonthToken = (dateText) => {
+  if (!dateText) return '';
+  const normalized = String(dateText).trim();
+  const parsed = new Date(normalized);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toLocaleString('en-US', { month: 'short' });
+  }
+
+  const monthMatch = normalized.match(/[A-Za-z]{3,9}/);
+  if (monthMatch) return monthMatch[0].slice(0, 3);
+  return '';
+};
 
 const DEFAULT_ENGLISH_MONTHS = [
   { id: 'dec2026', label: 'December 2026', gid: '0' },
@@ -66,7 +141,6 @@ const StudentDashboard = () => {
   });
   const [activeEnglishMonth, setActiveEnglishMonth] = useState(englishMonths.find(m => m.id === 'mar2026') || englishMonths[0]);
   const [students, setStudents] = useState([]);
-  const [prevStudents, setPrevStudents] = useState([]);
   const [loadingPrev, setLoadingPrev] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -82,6 +156,7 @@ const StudentDashboard = () => {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterTeam, setFilterTeam] = useState('');
   const [filterOverallLevel, setFilterOverallLevel] = useState('');
+  const [filterPlacementBatch, setFilterPlacementBatch] = useState('all');
 
   const updateGid = (id, newGid) => {
     const updated = englishMonths.map(m => m.id === id ? { ...m, gid: newGid } : m);
@@ -120,11 +195,14 @@ const StudentDashboard = () => {
     setFilterStatus('');
     setFilterTeam('');
     setFilterOverallLevel('');
+    setFilterPlacementBatch('all');
   };
 
   const handleSync = () => {
     if (activeTab.id === 'english') {
       fetchEnglishCSV(BASE_ENGLISH_URL + activeEnglishMonth.gid);
+    } else if (activeTab.id === 'placement') {
+      fetchPlacementCSV(getPlacementUrlForBatch(filterPlacementBatch), filterPlacementBatch);
     } else {
       fetchCSV(MAIN_URLS[activeTab.id]);
     }
@@ -142,39 +220,26 @@ const StudentDashboard = () => {
 
   useEffect(() => {
     if (!prevMonth?.gid || prevMonth.gid === '0' || activeTab.id !== 'english') { 
-      setPrevStudents([]); 
       return; 
     }
     setLoadingPrev(true);
     fetch(BASE_ENGLISH_URL + prevMonth.gid)
       .then(r => r.text())
       .then(text => {
-        let lines = text.split("\n");
+        let lines = text.split(/\r?\n/);
         const hi = lines.findIndex(l => {
           const lower = l.toLowerCase();
-          return (lower.includes("student") || lower.includes("name")) && lower.includes("mentor");
+          return (lower.includes("student") || lower.includes("name") || lower.includes("mentor")) && lower.includes("reading");
         });
         if (hi !== -1) lines = lines.slice(hi);
         Papa.parse(lines.join("\n"), {
           header: true,
           skipEmptyLines: true,
-          complete: ({ data }) => {
-            const mapped = data.map(row => {
-               const keys = Object.keys(row);
-               const firstKeyTrigger = keys[0];
-               const nameFromFirstCol = (row[firstKeyTrigger] || '').trim();
-               return {
-                Name: row["Students"] || row["Student"] || row["Name"] || nameFromFirstCol || "",
-                "Over All Level": row["Over All Level"] || row["Overall Level"] || row["Overall"] || "NA",
-                Mentor: row["Mentor"] || row["Mentor "] || "Unknown",
-                Reading: row["Reading"] || "NA",
-                Writing: row["Writing"] || "NA",
-                Listening: row["Listening"] || "NA",
-                Speaking: row["Speaking"] || "NA"
-               };
-            }).filter(s => s.Name && !["students", "name", "student name"].includes(s.Name.toLowerCase()) && s.Mentor !== "Mentor");
-            setPrevStudents(mapped);
-            setLoadingPrev(false);
+          transformHeader: (header) => header ? String(header).trim() : '',
+          transform: (value) => value ? String(value).trim() : '',
+          complete: () => {
+             // In this dashboard we don't store prevStudents anymore as it's handled by sub-components
+             setLoadingPrev(false);
           },
           error: () => setLoadingPrev(false),
         });
@@ -182,24 +247,7 @@ const StudentDashboard = () => {
       .catch(() => setLoadingPrev(false));
   }, [prevMonth?.gid, activeTab.id]);
 
-  useEffect(() => {
-    setSelectedStudent(null);
-    clearFilters();
-    setShowProgress(false);
-    if (activeTab.id === 'english') {
-      if (activeEnglishMonth.gid === '0') {
-        setError("Please update the GID for " + activeEnglishMonth.label + " in Settings.");
-        setStudents([]);
-        setLoading(false);
-      } else {
-        fetchEnglishCSV(BASE_ENGLISH_URL + activeEnglishMonth.gid);
-      }
-    } else {
-      fetchCSV(MAIN_URLS[activeTab.id]);
-    }
-  }, [activeTab, activeEnglishMonth]);
-
-  const fetchEnglishCSV = async (url) => {
+  const fetchEnglishCSV = useCallback(async (url) => {
     setLoading(true);
     setError(null);
     try {
@@ -207,36 +255,29 @@ const StudentDashboard = () => {
       if (!response.ok) throw new Error("Failed to fetch English Level CSV.");
       const text = await response.text();
 
-      let lines = text.split('\n');
-      // Look for the header row that contains 'Mentor' and 'Reading'
+      let lines = text.split(/\r?\n/);
       const headerIdx = lines.findIndex(line => {
         const l = line.toLowerCase();
-        return (l.includes('student') || l.includes('name')) && l.includes('mentor');
+        return (l.includes("student") || l.includes("name") || l.includes("mentor")) && l.includes("reading");
       });
 
       if (headerIdx !== -1) {
         lines = lines.slice(headerIdx);
-      } else {
-        // Fallback for March sheet where the first column might be empty or unnamed in mapping
-        // The second line in March CSV is: " ,Mentor,Reading,Listening,Writing,Speaking,Over All Level"
-        const marchHeaderIdx = lines.findIndex(line => line.toLowerCase().includes('mentor') && line.includes('Reading'));
-        if (marchHeaderIdx !== -1) {
-          lines = lines.slice(marchHeaderIdx);
-        }
       }
 
       const csvStr = lines.join('\n');
       Papa.parse(csvStr, {
         header: true,
         skipEmptyLines: true,
+        transformHeader: (header) => header ? String(header).trim() : '',
+        transform: (value) => value ? String(value).trim() : '',
         complete: (results) => {
           if (results.data && results.data.length > 0) {
             const mappedData = results.data.map(row => {
-              // Extract Name from first column if it's unnamed (CSV often has ",Mentor...")
               const keys = Object.keys(row);
               const firstKeyTrigger = keys[0];
               const nameFromFirstCol = (row[firstKeyTrigger] || '').trim();
-              
+
               return {
                 Name: row['Students'] || row['Student'] || row['Name'] || nameFromFirstCol || 'Unknown',
                 Mentor: row['Mentor'] || row['Mentor '] || 'Unknown',
@@ -246,10 +287,10 @@ const StudentDashboard = () => {
                 Speaking: row['Speaking'] || 'NA',
                 'Over All Level': row['Over All Level'] || row['Overall Level'] || row['Overall'] || 'NA'
               };
-            }).filter(s => s.Name && s.Name !== 'Unknown' && 
+            }).filter(s => s.Name && s.Name !== 'Unknown' &&
                            !['students', 'name', 'student name'].includes(s.Name.toLowerCase()) &&
                            s.Mentor !== 'Mentor');
-            
+
             setStudents(mappedData);
           } else {
             setError("No valid English student data found.");
@@ -266,9 +307,112 @@ const StudentDashboard = () => {
       setError(`Network error: ${err.message}`);
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchCSV = async (url) => {
+  const fetchPlacementCSV = useCallback(async (url, selectedBatch = 'all') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch Placement CSV.");
+      const text = await response.text();
+
+      let lines = text.split(/\r?\n/);
+      const headerIdx = lines.findIndex(line => {
+        const lower = line.toLowerCase();
+        return lower.includes('student') && (lower.includes('company') || lower.includes('mail'));
+      });
+      if (headerIdx !== -1) {
+        lines = lines.slice(headerIdx);
+      }
+
+      Papa.parse(lines.join('\n'), {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header ? String(header).trim() : '',
+        transform: (value) => value ? String(value).trim() : '',
+        complete: (results) => {
+          if (results.data && results.data.length > 0) {
+            const mappedData = results.data.map(row => {
+              const name = pickFirstValue(row, ['Student', 'Student name', 'Name']);
+              const company = pickFirstValue(row, ['Company']);
+              const salaryOffered = pickFirstValue(row, ['Salary offered']);
+              const joiningCampusDate = pickFirstValue(row, ['Date of joining Campus', 'Date of joining']);
+              const placementDate = pickFirstValue(row, ['Date of leaving - Placed', 'Date of leaving']);
+              const spentTime = pickFirstValue(row, ['Spent time in NavGurukul', 'Spent Days in NavGurukul']);
+              const currentWorkStatus = pickFirstValue(row, [
+                'Placed Candidates – Current Work Status Update',
+                'Placed Candidates - Current Work Status Update',
+                'Placed Candidates â€“ Current Work Status Update'
+              ]);
+              const batch = inferPlacementBatch(row);
+
+              return {
+                ...row,
+                Name: name || 'Unknown',
+                Email: pickFirstValue(row, ['Email id', 'Mail ID', 'Email']),
+                Gender: pickFirstValue(row, ['Gender', 'Gander']),
+                Company: company,
+                'Salary offered': salaryOffered,
+                'Date of joining Campus': joiningCampusDate,
+                'Date of leaving - Placed': placementDate,
+                'Spent time in NavGurukul': spentTime,
+                'Joining Date': joiningCampusDate,
+                'Joining Month': pickFirstValue(row, ['Job Month']) || getMonthToken(placementDate),
+                Education: pickFirstValue(row, ['Course', 'Academic Module']),
+                House: pickFirstValue(row, ['School']),
+                Team: pickFirstValue(row, ['Type of job']) || company,
+                School: pickFirstValue(row, ['School']),
+                'Student Type': pickFirstValue(row, ['Academic Module', 'Course']),
+                'Current Status': currentWorkStatus || 'Placed',
+                'Dropout Date': placementDate,
+                Address: pickFirstValue(row, ['Location']),
+                'Local Area': '',
+                'Panchayat/city': '',
+                Phone: pickFirstValue(row, ['Contact number', 'Contact Number']),
+                'Parent Info': '',
+                Feedback: pickFirstValue(row, [
+                  'How they get job?',
+                  'Placed Candidates – Current Work Status Update',
+                  'Placed Candidates - Current Work Status Update',
+                  'Placed Candidates â€“ Current Work Status Update'
+                ]),
+                Batch: batch
+              };
+            }).filter(s => (
+              s.Name &&
+              s.Name !== 'Unknown' &&
+              !['student', 'student name', 'name'].includes(s.Name.toLowerCase())
+            ));
+
+            const batchFiltered = selectedBatch === 'all'
+              ? mappedData
+              : mappedData.filter(student => student.Batch === selectedBatch);
+
+            if (batchFiltered.length > 0) {
+              setStudents(batchFiltered);
+            } else {
+              setStudents([]);
+              setError(`No placement records found for year ${selectedBatch}.`);
+            }
+          } else {
+            setError("No valid placement data found.");
+            setStudents([]);
+          }
+          setLoading(false);
+        },
+        error: (err) => {
+          setError(`Parse error: ${err.message}`);
+          setLoading(false);
+        }
+      });
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchCSV = useCallback(async (url) => {
     setLoading(true);
     setError(null);
     try {
@@ -276,7 +420,7 @@ const StudentDashboard = () => {
       if (!response.ok) throw new Error("Failed to fetch CSV.");
       const text = await response.text();
       
-      let lines = text.split('\n');
+      let lines = text.split(/\r?\n/);
       if (activeTab.id === 'main') {
         const headerRowIdx = lines.findIndex(line => line.includes('S No') && line.includes('Name'));
         if (headerRowIdx !== -1) {
@@ -289,6 +433,8 @@ const StudentDashboard = () => {
       Papa.parse(csvStr, {
         header: true,
         skipEmptyLines: true,
+        transformHeader: (header) => header ? String(header).trim() : '',
+        transform: (value) => value ? String(value).trim() : '',
         complete: (results) => {
           if (results.data && results.data.length > 0) {
             const mappedData = results.data.map(row => ({
@@ -331,7 +477,31 @@ const StudentDashboard = () => {
       setError(`Network error: ${err.message}`);
       setLoading(false);
     }
-  };
+  }, [activeTab.id]);
+
+  useEffect(() => {
+    setSelectedStudent(null);
+    clearFilters();
+    setShowProgress(false);
+  }, [activeTab.id]);
+
+  useEffect(() => {
+    if (activeTab.id === 'english') {
+      if (activeEnglishMonth.gid === '0') {
+        setError("Please update the GID for " + activeEnglishMonth.label + " in Settings.");
+        setStudents([]);
+        setLoading(false);
+      } else {
+        fetchEnglishCSV(BASE_ENGLISH_URL + activeEnglishMonth.gid);
+      }
+    } else if (activeTab.id === 'placement') {
+      fetchPlacementCSV(getPlacementUrlForBatch(filterPlacementBatch), filterPlacementBatch);
+    } else {
+      fetchCSV(MAIN_URLS[activeTab.id]);
+    }
+  }, [activeTab, activeEnglishMonth, filterPlacementBatch, fetchEnglishCSV, fetchPlacementCSV, fetchCSV]);
+
+
 
   // Filter Logic
   const filteredStudents = useMemo(() => {
@@ -342,24 +512,24 @@ const StudentDashboard = () => {
       const matchStatus = filterStatus ? student['Current Status'] === filterStatus : true;
       const matchTeam = filterTeam ? (student.Team === filterTeam || student.Mentor === filterTeam) : true;
       const matchLevel = filterOverallLevel ? student['Over All Level'] === filterOverallLevel : true;
+      const matchPlacementBatch = activeTab.id === 'placement'
+        ? (filterPlacementBatch === 'all' ? true : student.Batch === filterPlacementBatch)
+        : true;
 
-      return matchSearch && matchMonth && matchHouse && matchStatus && matchTeam && matchLevel;
+      return matchSearch && matchMonth && matchHouse && matchStatus && matchTeam && matchLevel && matchPlacementBatch;
     });
-  }, [students, searchQuery, filterMonth, filterHouse, filterStatus, filterTeam, filterOverallLevel]);
+  }, [students, searchQuery, filterMonth, filterHouse, filterStatus, filterTeam, filterOverallLevel, activeTab.id, filterPlacementBatch]);
 
   // Derived Metrics
   const isEnglishDashboard = activeTab.id === 'english';
+  const isPlacementDashboard = activeTab.id === 'placement';
   const totalStudents = filteredStudents.length;
 
-  const activeStudents = !isEnglishDashboard ? filteredStudents.filter(s => {
+  const activeStudents = !isEnglishDashboard ? (isPlacementDashboard ? filteredStudents.length : filteredStudents.filter(s => {
     const status = (s['Current Status'] || '').toLowerCase().trim();
     return status === 'in' || status === 'active' || status === 'in campus';
-  }).length : 0;
+  }).length) : 0;
 
-  const dropoutStudents = !isEnglishDashboard ? filteredStudents.filter(s => {
-    const status = (s['Current Status'] || '').toLowerCase().trim();
-    return status.includes('drop-out') || status.includes('dropout') || status.includes('in-active');
-  }).length : 0;
 
   const girlsCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'f' || s.Gender.toLowerCase() === 'female')).length : 0;
 
@@ -383,7 +553,7 @@ const StudentDashboard = () => {
   // Filter Options Data
   const uniqueMentors = isEnglishDashboard ? [...new Set(students.map(s => s.Mentor).filter(Boolean))].sort() : [];
   const uniqueLevels = isEnglishDashboard ? [...new Set(students.map(s => s['Over All Level']).filter(Boolean))].sort() : [];
-  const uniqueMonths = !isEnglishDashboard ? [...new Set(students.map(s => s['Joining Month']).filter(Boolean))].sort() : [];
+  const uniqueMonths = !isEnglishDashboard && !isPlacementDashboard ? [...new Set(students.map(s => s['Joining Month']).filter(Boolean))].sort() : [];
   const uniqueHouses = [...new Set(students.map(s => s.House).filter(Boolean))].sort();
   const uniqueStatuses = [...new Set(students.map(s => s['Current Status']).filter(Boolean))].sort();
   const uniqueTeams = [...new Set(students.map(s => s.Team).filter(Boolean))].sort();
@@ -544,6 +714,7 @@ const StudentDashboard = () => {
         <>
           <Filters 
             isEnglishDashboard={isEnglishDashboard}
+            isPlacementDashboard={isPlacementDashboard}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             filterMonth={filterMonth}
@@ -556,6 +727,9 @@ const StudentDashboard = () => {
             setFilterTeam={setFilterTeam}
             filterOverallLevel={filterOverallLevel}
             setFilterOverallLevel={setFilterOverallLevel}
+            filterPlacementBatch={filterPlacementBatch}
+            setFilterPlacementBatch={setFilterPlacementBatch}
+            placementBatchOptions={PLACEMENT_BATCH_OPTIONS}
             uniqueMonths={uniqueMonths}
             uniqueHouses={uniqueHouses}
             uniqueStatuses={uniqueStatuses}
@@ -581,6 +755,7 @@ const StudentDashboard = () => {
             <StudentListView 
               filteredStudents={filteredStudents}
               isEnglishDashboard={isEnglishDashboard}
+              isPlacementDashboard={isPlacementDashboard}
               setSelectedStudent={setSelectedStudent}
             />
           )}

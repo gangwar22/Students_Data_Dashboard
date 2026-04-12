@@ -101,21 +101,32 @@ const ProgressAnalytics = ({ currentStudents, currentMonthLabel, prevMonthUrl, p
   const { improved, steady, declined, teamWinners } = analyticsData;
 
   useEffect(() => {
-    if (!prevMonthUrl) { setPrevStudents([]); return; }
-    setLoadingPrev(true);
-    fetch(prevMonthUrl)
-      .then(r => r.text())
-      .then(text => {
-        let lines = text.split("\n");
+    let isMounted = true;
+    const fetchData = async () => {
+      if (!prevMonthUrl) { 
+        setPrevStudents([]);
+        return; 
+      }
+      setLoadingPrev(true);
+      try {
+        const response = await fetch(prevMonthUrl);
+        const text = await response.text();
+        if (!isMounted) return;
+        
+        let lines = text.split(/\r?\n/);
         const hi = lines.findIndex(l => {
           const lower = l.toLowerCase();
-          return (lower.includes("student") || lower.includes("name")) && lower.includes("mentor");
+          return (lower.includes("student") || lower.includes("name") || lower.includes("mentor")) && lower.includes("reading");
         });
         if (hi !== -1) lines = lines.slice(hi);
+        
         Papa.parse(lines.join("\n"), {
           header: true,
           skipEmptyLines: true,
+          transformHeader: (header) => header ? String(header).trim() : '',
+          transform: (value) => value ? String(value).trim() : '',
           complete: ({ data }) => {
+            if (!isMounted) return;
             const mapped = data.map(row => {
                const keys = Object.keys(row);
                const firstKeyTrigger = keys[0];
@@ -133,10 +144,16 @@ const ProgressAnalytics = ({ currentStudents, currentMonthLabel, prevMonthUrl, p
             setPrevStudents(mapped);
             setLoadingPrev(false);
           },
-          error: () => setLoadingPrev(false),
+          error: () => {
+            if (isMounted) setLoadingPrev(false);
+          },
         });
-      })
-      .catch(() => setLoadingPrev(false));
+      } catch {
+        if (isMounted) setLoadingPrev(false);
+      }
+    };
+    fetchData();
+    return () => { isMounted = false; };
   }, [prevMonthUrl]);
 
   const card = "bg-white/70 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2.5rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.1),0_8px_0_rgba(203,213,225,0.7)] dark:shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5),0_8px_0_rgba(30,41,59,0.7)] border-t-2 border-l-2 border-white/80 dark:border-slate-700/50 transition-all duration-500 overflow-hidden";
@@ -287,12 +304,15 @@ const ProgressAnalytics = ({ currentStudents, currentMonthLabel, prevMonthUrl, p
           { label: "Improved", data: improved, icon: TrendingUp, ...STATUS_COLORS.Improved },
           { label: "Steady", data: steady, icon: Minus, ...STATUS_COLORS.Steady },
           { label: "Declined", data: declined, icon: TrendingDown, ...STATUS_COLORS.Declined }
-        ].map(({ label, data, icon: Icon, bg, light, text, border }) => (
-          <div key={label} className={`${card} border-b-[6px] ${border} group hover:-translate-y-2`}>
-            <div className={`p-6 flex items-center justify-between ${light} border-b border-white/40 dark:border-black/20 text-indigo-600`}>
-              <div className="flex items-center gap-4">
-                <div className={`p-3 rounded-2xl ${bg} text-white shadow-xl shadow-opacity-20 transition-transform group-hover:scale-110`}><Icon className="w-5 h-5" /></div>
-                <div>
+        ].map((item) => {
+          const { label, data, bg, light, text, border } = item;
+          const Icon = item.icon;
+          return (
+            <div key={label} className={`${card} border-b-[6px] ${border} group hover:-translate-y-2`}>
+              <div className={`p-6 flex items-center justify-between ${light} border-b border-white/40 dark:border-black/20 text-indigo-600`}>
+                <div className="flex items-center gap-4">
+                  <div className={`p-3 rounded-2xl ${bg} text-white shadow-xl shadow-opacity-20 transition-transform group-hover:scale-110`}><Icon className="w-5 h-5" /></div>
+                  <div>
                    <h4 className={`text-[11px] font-black uppercase tracking-[0.2em] opacity-60 ${text}`}>{label}</h4>
                    <p className={`text-sm font-black ${text}`}>Total Students</p>
                 </div>
@@ -332,7 +352,8 @@ const ProgressAnalytics = ({ currentStudents, currentMonthLabel, prevMonthUrl, p
               )}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <EnglishProgressCharts 

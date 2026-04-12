@@ -7,6 +7,7 @@ import EnglishProgressCharts from './EnglishProgressCharts';
 const StudentListView = ({ 
   filteredStudents, 
   isEnglishDashboard, 
+  isPlacementDashboard = false,
   setSelectedStudent
 }) => {
   if (filteredStudents.length === 0) return null;
@@ -48,7 +49,11 @@ const StudentListView = ({
         </div>
       )}
 
-      <StudentTable students={filteredStudents} onSelectStudent={setSelectedStudent} />
+      <StudentTable
+        students={filteredStudents}
+        onSelectStudent={setSelectedStudent}
+        isPlacementDashboard={isPlacementDashboard}
+      />
     </>
   );
 };

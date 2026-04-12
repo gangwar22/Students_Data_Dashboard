@@ -47,7 +47,7 @@ const MetricCard = ({ title, value, subtitle, icon, colorTheme = 'blue' }) => {
       <div className="flex items-start justify-between relative z-10 w-full mb-2">
         <p className="text-[13px] font-extrabold text-white/95 uppercase tracking-widest drop-shadow-sm">{title}</p>
         <div className={`p-3 rounded-2xl ${theme.iconBg} backdrop-blur-md text-white transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 drop-shadow-lg`}>
-          {React.cloneElement(icon, { className: "w-7 h-7" })}
+          {React.isValidElement(icon) ? React.cloneElement(icon, { className: "w-7 h-7" }) : null}
         </div>
       </div>
       

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import Papa from "papaparse";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -24,7 +24,7 @@ const STATUS_COLORS = {
 };
 
 // ─── Tooltips ─────────────────────────────────────────────
-const CustomTooltip = ({ active, payload, label }) => {
+const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const data = payload[0].payload;
   return (
@@ -67,11 +67,15 @@ const EnglishProgressCharts = ({ currentStudents, currentMonthLabel, prevMonthUr
   const [loadingPrev, setLoadingPrev] = useState(false);
 
   useEffect(() => {
-    if (!prevMonthUrl) { setPrevStudents([]); return; }
-    setLoadingPrev(true);
-    fetch(prevMonthUrl)
-      .then(r => r.text())
-      .then(text => {
+    const fetchData = async () => {
+      if (!prevMonthUrl) {
+         setPrevStudents(prev => prev.length === 0 ? prev : []);
+         return;
+      }
+      setLoadingPrev(true);
+      try {
+        const response = await fetch(prevMonthUrl);
+        const text = await response.text();
         let lines = text.split("\n");
         const hi = lines.findIndex(l => l.toLowerCase().includes("student") && l.toLowerCase().includes("mentor"));
         if (hi !== -1) lines = lines.slice(hi);
@@ -88,11 +92,14 @@ const EnglishProgressCharts = ({ currentStudents, currentMonthLabel, prevMonthUr
           },
           error: () => setLoadingPrev(false),
         });
-      })
-      .catch(() => setLoadingPrev(false));
+      } catch {
+        setLoadingPrev(false);
+      }
+    };
+    fetchData();
   }, [prevMonthUrl]);
 
-  const { chartData, improved, steady, declined } = useMemo(() => {
+  const { chartData } = useMemo(() => {
     const prevMap = Object.fromEntries(prevStudents.map(s => [s.Name.trim(), s["Over All Level"]]));
     const rows = currentStudents.map(s => {
       const name = s.Name.trim();

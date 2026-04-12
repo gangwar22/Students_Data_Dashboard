@@ -40,8 +40,9 @@ const getLevelDot = (level) => {
   return 'bg-slate-500 shadow-[0_0_8px_rgba(100,116,139,0.8)] dark:bg-slate-400';
 };
 
-const StudentTable = ({ students, onSelectStudent }) => {
+const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false }) => {
   const isEnglishData = students.length > 0 && students[0].Reading !== undefined;
+  const isPlacementData = isPlacementDashboard;
   
   return (
     <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.1),0_6px_0_rgba(203,213,225,0.7)] dark:shadow-[0_15px_40px_-15px_rgba(0,0,0,0.5),0_6px_0_rgba(30,41,59,0.7)] border-t-2 border-l-2 border-white/80 dark:border-slate-700/80 mt-8 overflow-hidden transition-colors duration-300">
@@ -57,12 +58,18 @@ const StudentTable = ({ students, onSelectStudent }) => {
         <table className="w-full text-left border-collapse min-w-max">
           <thead>
             <tr className="bg-white/40 dark:bg-slate-800/40 border-b-2 border-slate-200 dark:border-slate-700/50 text-[13px] uppercase tracking-widest text-slate-500 dark:text-slate-400 font-extrabold transition-colors">
-              <th className="p-6 px-10 font-black">Student Profile</th>
+              <th className="p-6 px-10 font-black">{isPlacementData ? 'Student' : 'Student Profile'}</th>
               {isEnglishData ? (
                 <>
                   <th className="p-6 font-black whitespace-nowrap">Mentor</th>
                   <th className="p-6 font-black text-center whitespace-nowrap">R / L / W / S</th>
                   <th className="p-6 font-black">Overall Level</th>
+                </>
+              ) : isPlacementData ? (
+                <>
+                  <th className="p-6 font-black whitespace-nowrap">Company</th>
+                  <th className="p-6 font-black whitespace-nowrap">Salary Offered</th>
+                  <th className="p-6 font-black whitespace-nowrap">Spent Time in NavGurukul</th>
                 </>
               ) : (
                 <>
@@ -77,7 +84,7 @@ const StudentTable = ({ students, onSelectStudent }) => {
           <tbody className="divide-y-[3px] divide-slate-100/80 dark:divide-slate-700/50">
             {students.length === 0 ? (
               <tr>
-                <td colSpan="5" className="p-16 text-center bg-slate-50/30 dark:bg-slate-800/30">
+                <td colSpan={isPlacementData ? 5 : 5} className="p-16 text-center bg-slate-50/30 dark:bg-slate-800/30">
                   <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
                     <div className="w-20 h-20 bg-white dark:bg-slate-700/50 rounded-3xl flex items-center justify-center mb-5 border-b-4 border-slate-200 dark:border-slate-600 shadow-[0_5px_15px_rgba(0,0,0,0.05)] transform rotate-3">
                       <SearchX className="w-10 h-10 text-slate-400 dark:text-slate-500" />
@@ -136,6 +143,20 @@ const StudentTable = ({ students, onSelectStudent }) => {
                             <span className={`w-2.5 h-2.5 rounded-full mr-2.5 ${getLevelDot(student['Over All Level'])}`}></span>
                             {student['Over All Level'] || 'NA'}
                           </span>
+                        </td>
+                      </>
+                    ) : isPlacementData ? (
+                      <>
+                        <td className="p-5 min-w-[180px]">
+                          <div className="text-[15px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm truncate">
+                            {student.Company || '-'}
+                          </div>
+                        </td>
+                        <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
+                          {student['Salary offered'] || '-'}
+                        </td>
+                        <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
+                          {student['Spent time in NavGurukul'] || student['Spent Days in NavGurukul'] || '-'}
                         </td>
                       </>
                     ) : (
