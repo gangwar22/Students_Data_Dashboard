@@ -57,43 +57,74 @@ const extractPlacementYear = (value) => {
   const text = String(value || '').trim();
   if (!text) return '';
 
-  const fullYearMatch = text.match(/\b(20(?:23|24|25|26))\b/);
+  // 1. Detect and clean special characters (e.g., "-26-Feb-2025")
+  const cleanedText = text.replace(/^[-]+/, '');
+
+  // 2. Look for 4 consecutive digits that aren't part of a larger number, prioritizing 202x
+  const fullYearMatch = cleanedText.match(/\b(202[2-7])\b/);
   if (fullYearMatch) return fullYearMatch[1];
 
+  // 3. DD/MM/YYYY or D/M/YYYY or variants with hyphens/slashes
+  const dateMatch = cleanedText.match(/\b\d{1,2}[/-]\d{1,2}[/-](\d{4})\b/);
+  if (dateMatch) {
+    const year = dateMatch[1];
+    if (['2022', '2023', '2024', '2025', '2026', '2027'].includes(year)) return year;
+  }
+
+  // 4. DD-MMM-YYYY format (e.g., "08-Nov-2024", "26-Mar-2025")
+  const mmmMatch = cleanedText.match(/\b\d{1,2}[-\s/](jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[-\s/](\d{4})\b/i);
+  if (mmmMatch) {
+    const year = mmmMatch[2];
+    if (['2022', '2023', '2024', '2025', '2026', '2027'].includes(year)) return year;
+  }
+
   // Handle common typo patterns like 20205, 20204, etc.
-  const typoYearMatch = text.match(/\b2020?([3-6])\b/);
+  const typoYearMatch = cleanedText.match(/\b2020?([2-7])\b/);
   if (typoYearMatch) return `202${typoYearMatch[1]}`;
 
-  const shortYearMatch = text.match(/\b(23|24|25|26)\b/);
+  const shortYearMatch = cleanedText.match(/\b(22|23|24|25|26|27)\b/);
   if (shortYearMatch) return `20${shortYearMatch[1]}`;
 
   // Fallback: extract from compact numeric strings.
-  const digitsOnly = text.replace(/\D/g, '');
+  const digitsOnly = cleanedText.replace(/\D/g, '');
+  if (digitsOnly.includes('2022') || digitsOnly.includes('20202')) return '2022';
   if (digitsOnly.includes('2023') || digitsOnly.includes('20203')) return '2023';
   if (digitsOnly.includes('2024') || digitsOnly.includes('20204')) return '2024';
   if (digitsOnly.includes('2025') || digitsOnly.includes('20205')) return '2025';
   if (digitsOnly.includes('2026') || digitsOnly.includes('20206')) return '2026';
+  if (digitsOnly.includes('2027') || digitsOnly.includes('20207')) return '2027';
 
-  const parsed = new Date(text);
+  const parsed = new Date(cleanedText);
   if (!Number.isNaN(parsed.getTime())) {
     const parsedYear = String(parsed.getFullYear());
-    if (PLACEMENT_BATCH_OPTIONS.includes(parsedYear)) return parsedYear;
+    if (['2022', '2023', '2024', '2025', '2026', '2027'].includes(parsedYear)) return parsedYear;
   }
 
   return '';
 };
 
 const inferPlacementBatch = (row) => {
-  const fromJobYear = extractPlacementYear(pickFirstValue(row, ['Job Year']));
+  // 1. Check MOST reliable year indicator: 'Job Year'
+  // Support both 'Job Year' and 'Job Year ' (with trailing space)
+  const jobYearValue = row['Job Year'] || row['Job Year '] || row['Job Year  '];
+  const fromJobYear = extractPlacementYear(jobYearValue);
   if (fromJobYear) return fromJobYear;
 
-  const fromPlacedDate = extractPlacementYear(pickFirstValue(row, ['Date of leaving - Placed', 'Date of leaving']));
+  // 2. Check and prioritize specific date column: 'Date of leaving - Placed'
+  // Support variants: 'Date of leaving - Placed', 'Date of leaving- Placed' (missing space), 'Date of leaving  - Placed'
+  const placementDateCandidate = row['Date of leaving - Placed'] || row['Date of leaving- Placed'] || row['Date of leaving  - Placed'];
+  const fromPlacedDate = extractPlacementYear(placementDateCandidate);
   if (fromPlacedDate) return fromPlacedDate;
+
+  // 3. Fallbacks for other possible column names
+  const fromAlternativeDate = extractPlacementYear(pickFirstValue(row, ['Date of leaving', 'Left Date', 'Placement Date', 'Placement Year', 'Date of Leaving']));
+  if (fromAlternativeDate) return fromAlternativeDate;
 
   const fromJoiningDate = extractPlacementYear(pickFirstValue(row, ['Date of joining Campus', 'Date of joining']));
   if (fromJoiningDate) return fromJoiningDate;
 
-  const email = pickFirstValue(row, ['Email id', 'Mail ID', 'Email']).toLowerCase();
+  // 4. Fallback to email batch
+  const email = (row['Email id'] || row['Mail ID'] || row['Email'] || '').toString().toLowerCase();
   const emailMatch = email.match(/(23|24|25|26)@/);
   if (emailMatch) return `20${emailMatch[1]}`;
 
@@ -309,103 +340,102 @@ const StudentDashboard = () => {
     }
   }, []);
 
-  const fetchPlacementCSV = useCallback(async (url, selectedBatch = 'all') => {
+  const fetchPlacementCSV = useCallback(async (selectedBatch = 'all') => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error("Failed to fetch Placement CSV.");
-      const text = await response.text();
+      const urls = [PLACEMENT_URLS.all, PLACEMENT_URLS.batch2425];
+      const fetchPromises = urls.map(url => fetch(url).then(r => r.text()));
+      const csvTexts = await Promise.all(fetchPromises);
 
-      let lines = text.split(/\r?\n/);
-      const headerIdx = lines.findIndex(line => {
-        const lower = line.toLowerCase();
-        return lower.includes('student') && (lower.includes('company') || lower.includes('mail'));
-      });
-      if (headerIdx !== -1) {
-        lines = lines.slice(headerIdx);
-      }
+      let allMappedData = [];
 
-      Papa.parse(lines.join('\n'), {
-        header: true,
-        skipEmptyLines: true,
-        transformHeader: (header) => header ? String(header).trim() : '',
-        transform: (value) => value ? String(value).trim() : '',
-        complete: (results) => {
-          if (results.data && results.data.length > 0) {
-            const mappedData = results.data.map(row => {
-              const name = pickFirstValue(row, ['Student', 'Student name', 'Name']);
-              const company = pickFirstValue(row, ['Company']);
-              const salaryOffered = pickFirstValue(row, ['Salary offered']);
-              const joiningCampusDate = pickFirstValue(row, ['Date of joining Campus', 'Date of joining']);
-              const placementDate = pickFirstValue(row, ['Date of leaving - Placed', 'Date of leaving']);
-              const spentTime = pickFirstValue(row, ['Spent time in NavGurukul', 'Spent Days in NavGurukul']);
-              const currentWorkStatus = pickFirstValue(row, [
-                'Placed Candidates – Current Work Status Update',
-                'Placed Candidates - Current Work Status Update',
-                'Placed Candidates â€“ Current Work Status Update'
-              ]);
-              const batch = inferPlacementBatch(row);
+      csvTexts.forEach(text => {
+        let lines = text.split(/\r?\n/);
+        const headerIdx = lines.findIndex(line => {
+          const lower = line.toLowerCase();
+          return lower.includes('student') && (lower.includes('company') || lower.includes('mail'));
+        });
+        if (headerIdx !== -1) {
+          lines = lines.slice(headerIdx);
+        }
 
-              return {
-                ...row,
-                Name: name || 'Unknown',
-                Email: pickFirstValue(row, ['Email id', 'Mail ID', 'Email']),
-                Gender: pickFirstValue(row, ['Gender', 'Gander']),
-                Company: company,
-                'Salary offered': salaryOffered,
-                'Date of joining Campus': joiningCampusDate,
-                'Date of leaving - Placed': placementDate,
-                'Spent time in NavGurukul': spentTime,
-                'Joining Date': joiningCampusDate,
-                'Joining Month': pickFirstValue(row, ['Job Month']) || getMonthToken(placementDate),
-                Education: pickFirstValue(row, ['Course', 'Academic Module']),
-                House: pickFirstValue(row, ['School']),
-                Team: pickFirstValue(row, ['Type of job']) || company,
-                School: pickFirstValue(row, ['School']),
-                'Student Type': pickFirstValue(row, ['Academic Module', 'Course']),
-                'Current Status': currentWorkStatus || 'Placed',
-                'Dropout Date': placementDate,
-                Address: pickFirstValue(row, ['Location']),
-                'Local Area': '',
-                'Panchayat/city': '',
-                Phone: pickFirstValue(row, ['Contact number', 'Contact Number']),
-                'Parent Info': '',
-                Feedback: pickFirstValue(row, [
-                  'How they get job?',
+        Papa.parse(lines.join('\n'), {
+          header: true,
+          skipEmptyLines: true,
+          transformHeader: (header) => header ? String(header).trim() : '',
+          transform: (value) => value ? String(value).trim() : '',
+          complete: (results) => {
+            if (results.data && results.data.length > 0) {
+              const mappedData = results.data.map(row => {
+                const name = pickFirstValue(row, ['Student', 'Student name', 'Name']);
+                const company = pickFirstValue(row, ['Company']);
+                const salaryOffered = pickFirstValue(row, ['Salary offered']);
+                const joiningCampusDate = pickFirstValue(row, ['Date of joining Campus', 'Date of joining']);
+                const placementDate = pickFirstValue(row, ['Date of leaving - Placed', 'Date of leaving', 'Date of leaving- Placed', 'Date of leaving  - Placed']);
+                const spentTime = pickFirstValue(row, ['Spent time in NavGurukul', 'Spent Days in NavGurukul']);
+                const currentWorkStatus = pickFirstValue(row, [
                   'Placed Candidates – Current Work Status Update',
                   'Placed Candidates - Current Work Status Update',
                   'Placed Candidates â€“ Current Work Status Update'
-                ]),
-                Batch: batch
-              };
-            }).filter(s => (
-              s.Name &&
-              s.Name !== 'Unknown' &&
-              !['student', 'student name', 'name'].includes(s.Name.toLowerCase())
-            ));
+                ]);
+                const batch = inferPlacementBatch(row);
 
-            const batchFiltered = selectedBatch === 'all'
-              ? mappedData
-              : mappedData.filter(student => student.Batch === selectedBatch);
-
-            if (batchFiltered.length > 0) {
-              setStudents(batchFiltered);
-            } else {
-              setStudents([]);
-              setError(`No placement records found for year ${selectedBatch}.`);
+                return {
+                  ...row,
+                  'Job Year': row['Job Year'] || row['Job Year '] || row['Job Year  '] || batch,
+                  Name: name || 'Unknown',
+                  Email: pickFirstValue(row, ['Email id', 'Mail ID', 'Email']),
+                  Gender: pickFirstValue(row, ['Gender', 'Gander']),
+                  Company: company,
+                  'Salary offered': salaryOffered,
+                  'Date of joining Campus': joiningCampusDate,
+                  'Date of leaving - Placed': placementDate,
+                  'Spent time in NavGurukul': spentTime,
+                  'Joining Date': joiningCampusDate,
+                  'Joining Month': pickFirstValue(row, ['Job Month']) || getMonthToken(placementDate),
+                  Education: pickFirstValue(row, ['Course', 'Academic Module']),
+                  House: pickFirstValue(row, ['School']),
+                  Team: pickFirstValue(row, ['Type of job']) || company,
+                  School: pickFirstValue(row, ['School']),
+                  'Student Type': pickFirstValue(row, ['Academic Module', 'Course']),
+                  'Current Status': currentWorkStatus || 'Placed',
+                  'Dropout Date': placementDate,
+                  Address: pickFirstValue(row, ['Location']),
+                  'Local Area': '',
+                  'Panchayat/city': '',
+                  Phone: pickFirstValue(row, ['Contact number', 'Contact Number']),
+                  'Parent Info': '',
+                  Feedback: pickFirstValue(row, [
+                    'How they get job?',
+                    'Placed Candidates – Current Work Status Update',
+                    'Placed Candidates - Current Work Status Update',
+                    'Placed Candidates â€“ Current Work Status Update'
+                  ]),
+                  Batch: batch
+                };
+              }).filter(s => (
+                s.Name &&
+                s.Name !== 'Unknown' &&
+                !['student', 'student name', 'name'].includes(s.Name.toLowerCase())
+              ));
+              allMappedData = [...allMappedData, ...mappedData];
             }
-          } else {
-            setError("No valid placement data found.");
-            setStudents([]);
           }
-          setLoading(false);
-        },
-        error: (err) => {
-          setError(`Parse error: ${err.message}`);
-          setLoading(false);
-        }
+        });
       });
+
+      // Deduplicate by Name and Email if needed, but here we just merge
+      const finalData = selectedBatch === 'all'
+        ? allMappedData
+        : allMappedData.filter(student => student.Batch === selectedBatch);
+
+      setStudents(finalData);
+      setLoading(false);
+      
+      if (finalData.length === 0 && selectedBatch !== 'all') {
+        setError(`No placement records found for year ${selectedBatch}.`);
+      }
     } catch (err) {
       setError(`Network error: ${err.message}`);
       setLoading(false);
@@ -495,7 +525,8 @@ const StudentDashboard = () => {
         fetchEnglishCSV(BASE_ENGLISH_URL + activeEnglishMonth.gid);
       }
     } else if (activeTab.id === 'placement') {
-      fetchPlacementCSV(getPlacementUrlForBatch(filterPlacementBatch), filterPlacementBatch);
+      // Changed: Always fetch all data and handle combined results
+      fetchPlacementCSV(filterPlacementBatch);
     } else {
       fetchCSV(MAIN_URLS[activeTab.id]);
     }
@@ -512,8 +543,10 @@ const StudentDashboard = () => {
       const matchStatus = filterStatus ? student['Current Status'] === filterStatus : true;
       const matchTeam = filterTeam ? (student.Team === filterTeam || student.Mentor === filterTeam) : true;
       const matchLevel = filterOverallLevel ? student['Over All Level'] === filterOverallLevel : true;
-      const matchPlacementBatch = activeTab.id === 'placement'
-        ? (filterPlacementBatch === 'all' ? true : student.Batch === filterPlacementBatch)
+      
+      // Fixed: Check BOTH student.Batch (calculated) AND student['Job Year'] (raw)
+      const matchPlacementBatch = (activeTab.id === 'placement' && filterPlacementBatch !== 'all')
+        ? (student.Batch === filterPlacementBatch || student['Job Year'] === filterPlacementBatch)
         : true;
 
       return matchSearch && matchMonth && matchHouse && matchStatus && matchTeam && matchLevel && matchPlacementBatch;
@@ -549,6 +582,37 @@ const StudentDashboard = () => {
     const lvl = (s['Over All Level'] || '').toUpperCase();
     return lvl.includes('A1') || lvl.includes('A0') || lvl.includes('LEAVE') || lvl.includes('NA') || lvl.includes('ABSENT');
   }).length : 0;
+
+  const salaryStats = useMemo(() => {
+    if (!isPlacementDashboard || filteredStudents.length === 0) return { avg: 0, min: 0 };
+    
+    const salaries = filteredStudents
+      .map(s => {
+        let val = String(s['Salary offered'] || '').toLowerCase();
+        if (val.includes('lpa') || val.includes('lacs') || val.includes('lac')) {
+          let num = parseFloat(val.replace(/[^0-9.]/g, ''));
+          if (!isNaN(num)) return (num * 100000) / 12;
+        }
+        let num = parseFloat(val.replace(/[^0-9.]/g, ''));
+        return num;
+      })
+      .filter(val => !isNaN(val) && val > 500);
+    
+    if (salaries.length === 0) return { avg: 0, min: 0 };
+    
+    const sum = salaries.reduce((a, b) => a + b, 0);
+    const avg = Math.round(sum / salaries.length);
+    const max = Math.max(...salaries);
+    
+    const formatter = new Intl.NumberFormat('en-IN');
+    return { 
+      avg: formatter.format(avg), 
+      max: formatter.format(Math.round(max)) 
+    };
+  }, [isPlacementDashboard, filteredStudents]);
+
+  const avgSalary = salaryStats.avg;
+  const maxSalary = salaryStats.max;
 
   // Filter Options Data
   const uniqueMentors = isEnglishDashboard ? [...new Set(students.map(s => s.Mentor).filter(Boolean))].sort() : [];
@@ -668,6 +732,7 @@ const StudentDashboard = () => {
 
       <Metrics 
         isEnglishDashboard={isEnglishDashboard}
+        isPlacementDashboard={isPlacementDashboard}
         totalStudents={totalStudents}
         activeStudents={activeStudents}
         boysCount={boysCount}
@@ -675,7 +740,7 @@ const StudentDashboard = () => {
         levelBAandAbove={levelBAandAbove}
         levelA2={levelA2}
         needsImprovement={needsImprovement}
-        loading={loading}
+        maxSalary={maxSalary}        loading={loading}
         studentsLength={students.length}
         activeTabLabel={activeTab.label}
       />

@@ -105,9 +105,18 @@ const DashboardCharts = ({ students, isEnglishData }) => {
                 <Tooltip content={<CustomTooltip />} />
                 <Legend 
                   verticalAlign="bottom" 
-                  height={50} 
+                  height={80} 
                   iconType="circle"
-                  wrapperStyle={{ fontSize: '14px', fontWeight: 800, color: '#64748b', paddingTop: '25px' }}
+                  layout="horizontal"
+                  align="center"
+                  wrapperStyle={{ 
+                    fontSize: '12px', 
+                    fontWeight: 700, 
+                    color: '#64748b', 
+                    paddingTop: '20px',
+                    width: '100%',
+                    left: 0
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -131,15 +140,32 @@ const DashboardCharts = ({ students, isEnglishData }) => {
 
   // Normal Data: Aggregate by Status
   const statusCounts = students.reduce((acc, student) => {
-    const status = student['Current Status'] || 'Unknown';
+    let status = student['Current Status'] || 'Unknown';
+    // Clean up status names to avoid duplicates and handle extremely long strings
+    status = status.trim();
+    if (status === '') status = 'Unknown';
+    
+    // Trim long status strings that contain extra details like "Company Name:..." or "Location:..."
+    // which shouldn't be in the Status field.
+    if (status.length > 25) {
+      status = status.substring(0, 22) + '...';
+    }
+    
     acc[status] = (acc[status] || 0) + 1;
     return acc;
   }, {});
 
-  const statusData = Object.keys(statusCounts).map(status => ({
+  let statusData = Object.keys(statusCounts).map(status => ({
     name: status,
     value: statusCounts[status]
   })).sort((a,b) => b.value - a.value);
+
+  // If there are too many statuses (common in placement data), show top 5 and group others
+  if (statusData.length > 5) {
+    const top5 = statusData.slice(0, 4);
+    const othersValue = statusData.slice(4).reduce((sum, item) => sum + item.value, 0);
+    statusData = [...top5, { name: 'Others', value: othersValue }];
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
@@ -173,9 +199,9 @@ const DashboardCharts = ({ students, isEnglishData }) => {
           <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 drop-shadow-sm tracking-tight">Status Distribution</h3>
           <p className="text-[15px] text-slate-500 dark:text-slate-400 font-bold mt-1">Current state of enrollments</p>
         </div>
-        <div className="h-80 relative">
+        <div className="min-h-[400px] h-auto relative">
           <div className="absolute inset-0 bg-purple-100/20 dark:bg-purple-900/10 rounded-2xl -z-10"></div>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={400}>
             <PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <defs>
                 {COLORS.map((color, index) => (
@@ -202,9 +228,21 @@ const DashboardCharts = ({ students, isEnglishData }) => {
               <Tooltip content={<CustomTooltip />} />
               <Legend 
                 verticalAlign="bottom" 
-                height={50} 
+                height={120} 
                 iconType="circle"
-                wrapperStyle={{ fontSize: '14px', fontWeight: 800, color: '#64748b', paddingTop: '25px' }}
+                layout="horizontal"
+                align="center"
+                wrapperStyle={{ 
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  color: '#64748b', 
+                  paddingTop: '30px',
+                  width: '100%',
+                  left: 0,
+                  display: 'flex',
+                  justifyContent: 'center',
+                  flexWrap: 'wrap'
+                }}
               />
             </PieChart>
           </ResponsiveContainer>

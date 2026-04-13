@@ -1,9 +1,10 @@
 ﻿import React from "react";
-import { Users, UserCheck, GraduationCap, Loader2, User } from "lucide-react";
+import { Users, UserCheck, GraduationCap, Loader2, User, TrendingUp } from "lucide-react";
 import MetricCard from "./MetricCard";
 
 const Metrics = ({ 
   isEnglishDashboard, 
+  isPlacementDashboard = false,
   totalStudents, 
   activeStudents, 
   boysCount, 
@@ -11,6 +12,7 @@ const Metrics = ({
   levelBAandAbove, 
   levelA2, 
   needsImprovement,
+  maxSalary,
   loading,
   studentsLength,
   activeTabLabel
@@ -29,7 +31,7 @@ const Metrics = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
       <MetricCard
-        title={isEnglishDashboard ? "Tested Students" : "Total Students"}
+        title={isPlacementDashboard ? "Students Placed" : (isEnglishDashboard ? "Tested Students" : "Total Students")}
         value={totalStudents}
         icon={<Users className="w-6 h-6" />}
         colorTheme="blue"
@@ -53,6 +55,27 @@ const Metrics = ({
             value={needsImprovement}
             icon={<User className="w-6 h-6" />}
             colorTheme="red"
+          />
+        </>
+      ) : isPlacementDashboard ? (
+        <>
+          <MetricCard
+            title="Boys Placed"
+            value={boysCount}
+            icon={<User className="w-6 h-6 text-blue-500" />}
+            colorTheme="blue"
+          />
+          <MetricCard
+            title="Girls Placed"
+            value={girlsCount}
+            icon={<GraduationCap className="w-6 h-6 text-pink-500" />}
+            colorTheme="purple"
+          />
+          <MetricCard
+            title="Salary Offered"
+            value="₹15,000"
+            icon={<TrendingUp className="w-6 h-6" />}
+            colorTheme="emerald"
           />
         </>
       ) : (
