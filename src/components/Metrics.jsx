@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { Users, UserCheck, GraduationCap, Loader2, User, TrendingUp } from "lucide-react";
+import { Users, UserCheck, GraduationCap, Loader2, User } from "lucide-react";
 import MetricCard from "./MetricCard";
 
 const Metrics = ({ 
@@ -12,7 +12,6 @@ const Metrics = ({
   levelBAandAbove, 
   levelA2, 
   needsImprovement,
-  maxSalary,
   loading,
   studentsLength,
   activeTabLabel
@@ -72,9 +71,9 @@ const Metrics = ({
             colorTheme="purple"
           />
           <MetricCard
-            title="Salary Offered"
-            value="₹15,000"
-            icon={<TrendingUp className="w-6 h-6" />}
+            title="Avg. Salary"
+            value="Coming Soon"
+            icon={<UserCheck className="w-6 h-6" />}
             colorTheme="emerald"
           />
         </>

@@ -10,7 +10,19 @@ const StudentListView = ({
   isPlacementDashboard = false,
   setSelectedStudent
 }) => {
-  if (filteredStudents.length === 0) return null;
+  if (filteredStudents.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-20 bg-white/50 dark:bg-slate-800/50 rounded-[3rem] border-4 border-dashed border-slate-200 dark:border-slate-700/50 backdrop-blur-xl animate-in fade-in zoom-in duration-700">
+        <div className="w-24 h-24 bg-slate-100 dark:bg-slate-700/50 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-white dark:ring-slate-800">
+          <Menu className="w-10 h-10 text-slate-400 dark:text-slate-500" />
+        </div>
+        <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 mb-2">No Students Found</h3>
+        <p className="text-slate-500 dark:text-slate-400 font-bold max-w-sm text-center">
+          Try adjusting your search or filters to find what you're looking for.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <>

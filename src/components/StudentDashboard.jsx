@@ -340,102 +340,102 @@ const StudentDashboard = () => {
     }
   }, []);
 
-  const fetchPlacementCSV = useCallback(async (selectedBatch = 'all') => {
+  const fetchPlacementCSV = useCallback(async (url, selectedBatch = 'all') => {
     setLoading(true);
     setError(null);
     try {
-      const urls = [PLACEMENT_URLS.all, PLACEMENT_URLS.batch2425];
-      const fetchPromises = urls.map(url => fetch(url).then(r => r.text()));
-      const csvTexts = await Promise.all(fetchPromises);
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch Placement CSV.");
+      const text = await response.text();
 
-      let allMappedData = [];
+      let lines = text.split(/\r?\n/);
+      const headerIdx = lines.findIndex(line => {
+        const lower = line.toLowerCase();
+        return lower.includes('student') && (lower.includes('company') || lower.includes('mail'));
+      });
+      if (headerIdx !== -1) {
+        lines = lines.slice(headerIdx);
+      }
 
-      csvTexts.forEach(text => {
-        let lines = text.split(/\r?\n/);
-        const headerIdx = lines.findIndex(line => {
-          const lower = line.toLowerCase();
-          return lower.includes('student') && (lower.includes('company') || lower.includes('mail'));
-        });
-        if (headerIdx !== -1) {
-          lines = lines.slice(headerIdx);
-        }
+      Papa.parse(lines.join('\n'), {
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: (header) => header ? String(header).trim() : '',
+        transform: (value) => value ? String(value).trim() : '',
+        complete: (results) => {
+          if (results.data && results.data.length > 0) {
+            const mappedData = results.data.map(row => {
+              const name = pickFirstValue(row, ['Student', 'Student name', 'Name']);
+              const company = pickFirstValue(row, ['Company']);
+              const salaryOffered = pickFirstValue(row, ['Salary offered']);
+              const joiningCampusDate = pickFirstValue(row, ['Date of joining Campus', 'Date of joining']);
+              const placementDate = pickFirstValue(row, ['Date of leaving - Placed', 'Date of leaving']);
+              const spentTime = pickFirstValue(row, ['Spent time in NavGurukul', 'Spent Days in NavGurukul']);
+              const currentWorkStatus = pickFirstValue(row, [
+                'Placed Candidates – Current Work Status Update',
+                'Placed Candidates - Current Work Status Update',
+                'Placed Candidates â€“ Current Work Status Update'
+              ]);
+              const batch = inferPlacementBatch(row);
 
-        Papa.parse(lines.join('\n'), {
-          header: true,
-          skipEmptyLines: true,
-          transformHeader: (header) => header ? String(header).trim() : '',
-          transform: (value) => value ? String(value).trim() : '',
-          complete: (results) => {
-            if (results.data && results.data.length > 0) {
-              const mappedData = results.data.map(row => {
-                const name = pickFirstValue(row, ['Student', 'Student name', 'Name']);
-                const company = pickFirstValue(row, ['Company']);
-                const salaryOffered = pickFirstValue(row, ['Salary offered']);
-                const joiningCampusDate = pickFirstValue(row, ['Date of joining Campus', 'Date of joining']);
-                const placementDate = pickFirstValue(row, ['Date of leaving - Placed', 'Date of leaving', 'Date of leaving- Placed', 'Date of leaving  - Placed']);
-                const spentTime = pickFirstValue(row, ['Spent time in NavGurukul', 'Spent Days in NavGurukul']);
-                const currentWorkStatus = pickFirstValue(row, [
+              return {
+                ...row,
+                'Job Year': row['Job Year'] || row['Job Year '] || row['Job Year  '] || batch,
+                Name: name || 'Unknown',
+                Email: pickFirstValue(row, ['Email id', 'Mail ID', 'Email']),
+                Gender: pickFirstValue(row, ['Gender', 'Gander']),
+                Company: company,
+                'Salary offered': salaryOffered,
+                'Date of joining Campus': joiningCampusDate,
+                'Date of leaving - Placed': placementDate,
+                'Spent time in NavGurukul': spentTime,
+                'Joining Date': joiningCampusDate,
+                'Joining Month': pickFirstValue(row, ['Job Month']) || getMonthToken(placementDate),
+                Education: pickFirstValue(row, ['Course', 'Academic Module']),
+                House: pickFirstValue(row, ['School']),
+                Team: pickFirstValue(row, ['Type of job']) || company,
+                School: pickFirstValue(row, ['School']),
+                'Student Type': pickFirstValue(row, ['Academic Module', 'Course']),
+                'Current Status': currentWorkStatus || 'Placed',
+                'Dropout Date': placementDate,
+                Address: pickFirstValue(row, ['Location']),
+                'Local Area': '',
+                'Panchayat/city': '',
+                Phone: pickFirstValue(row, ['Contact number', 'Contact Number']),
+                'Parent Info': '',
+                Feedback: pickFirstValue(row, [
+                  'How they get job?',
                   'Placed Candidates – Current Work Status Update',
                   'Placed Candidates - Current Work Status Update',
                   'Placed Candidates â€“ Current Work Status Update'
-                ]);
-                const batch = inferPlacementBatch(row);
+                ]),
+                Batch: batch
+              };
+            }).filter(s => (
+              s.Name &&
+              s.Name !== 'Unknown' &&
+              !['student', 'student name', 'name'].includes(s.Name.toLowerCase())
+            ));
 
-                return {
-                  ...row,
-                  'Job Year': row['Job Year'] || row['Job Year '] || row['Job Year  '] || batch,
-                  Name: name || 'Unknown',
-                  Email: pickFirstValue(row, ['Email id', 'Mail ID', 'Email']),
-                  Gender: pickFirstValue(row, ['Gender', 'Gander']),
-                  Company: company,
-                  'Salary offered': salaryOffered,
-                  'Date of joining Campus': joiningCampusDate,
-                  'Date of leaving - Placed': placementDate,
-                  'Spent time in NavGurukul': spentTime,
-                  'Joining Date': joiningCampusDate,
-                  'Joining Month': pickFirstValue(row, ['Job Month']) || getMonthToken(placementDate),
-                  Education: pickFirstValue(row, ['Course', 'Academic Module']),
-                  House: pickFirstValue(row, ['School']),
-                  Team: pickFirstValue(row, ['Type of job']) || company,
-                  School: pickFirstValue(row, ['School']),
-                  'Student Type': pickFirstValue(row, ['Academic Module', 'Course']),
-                  'Current Status': currentWorkStatus || 'Placed',
-                  'Dropout Date': placementDate,
-                  Address: pickFirstValue(row, ['Location']),
-                  'Local Area': '',
-                  'Panchayat/city': '',
-                  Phone: pickFirstValue(row, ['Contact number', 'Contact Number']),
-                  'Parent Info': '',
-                  Feedback: pickFirstValue(row, [
-                    'How they get job?',
-                    'Placed Candidates – Current Work Status Update',
-                    'Placed Candidates - Current Work Status Update',
-                    'Placed Candidates â€“ Current Work Status Update'
-                  ]),
-                  Batch: batch
-                };
-              }).filter(s => (
-                s.Name &&
-                s.Name !== 'Unknown' &&
-                !['student', 'student name', 'name'].includes(s.Name.toLowerCase())
-              ));
-              allMappedData = [...allMappedData, ...mappedData];
+            const batchFiltered = selectedBatch === 'all'
+              ? mappedData
+              : mappedData.filter(student => student.Batch === selectedBatch);
+
+            setStudents(batchFiltered);
+            if (batchFiltered.length === 0 && selectedBatch !== 'all') {
+              setError(`No placement records found for year ${selectedBatch}.`);
             }
+          } else {
+            setError("No valid placement data found.");
+            setStudents([]);
           }
-        });
+          setLoading(false);
+        },
+        error: (err) => {
+          setError(`Parse error: ${err.message}`);
+          setLoading(false);
+        }
       });
-
-      // Deduplicate by Name and Email if needed, but here we just merge
-      const finalData = selectedBatch === 'all'
-        ? allMappedData
-        : allMappedData.filter(student => student.Batch === selectedBatch);
-
-      setStudents(finalData);
-      setLoading(false);
-      
-      if (finalData.length === 0 && selectedBatch !== 'all') {
-        setError(`No placement records found for year ${selectedBatch}.`);
-      }
     } catch (err) {
       setError(`Network error: ${err.message}`);
       setLoading(false);
@@ -525,8 +525,8 @@ const StudentDashboard = () => {
         fetchEnglishCSV(BASE_ENGLISH_URL + activeEnglishMonth.gid);
       }
     } else if (activeTab.id === 'placement') {
-      // Changed: Always fetch all data and handle combined results
-      fetchPlacementCSV(filterPlacementBatch);
+      // Changed: Always fetch the appropriate URL but handle local filtering in useMemo
+      fetchPlacementCSV(getPlacementUrlForBatch(filterPlacementBatch), 'all');
     } else {
       fetchCSV(MAIN_URLS[activeTab.id]);
     }
@@ -582,37 +582,6 @@ const StudentDashboard = () => {
     const lvl = (s['Over All Level'] || '').toUpperCase();
     return lvl.includes('A1') || lvl.includes('A0') || lvl.includes('LEAVE') || lvl.includes('NA') || lvl.includes('ABSENT');
   }).length : 0;
-
-  const salaryStats = useMemo(() => {
-    if (!isPlacementDashboard || filteredStudents.length === 0) return { avg: 0, min: 0 };
-    
-    const salaries = filteredStudents
-      .map(s => {
-        let val = String(s['Salary offered'] || '').toLowerCase();
-        if (val.includes('lpa') || val.includes('lacs') || val.includes('lac')) {
-          let num = parseFloat(val.replace(/[^0-9.]/g, ''));
-          if (!isNaN(num)) return (num * 100000) / 12;
-        }
-        let num = parseFloat(val.replace(/[^0-9.]/g, ''));
-        return num;
-      })
-      .filter(val => !isNaN(val) && val > 500);
-    
-    if (salaries.length === 0) return { avg: 0, min: 0 };
-    
-    const sum = salaries.reduce((a, b) => a + b, 0);
-    const avg = Math.round(sum / salaries.length);
-    const max = Math.max(...salaries);
-    
-    const formatter = new Intl.NumberFormat('en-IN');
-    return { 
-      avg: formatter.format(avg), 
-      max: formatter.format(Math.round(max)) 
-    };
-  }, [isPlacementDashboard, filteredStudents]);
-
-  const avgSalary = salaryStats.avg;
-  const maxSalary = salaryStats.max;
 
   // Filter Options Data
   const uniqueMentors = isEnglishDashboard ? [...new Set(students.map(s => s.Mentor).filter(Boolean))].sort() : [];
@@ -740,7 +709,7 @@ const StudentDashboard = () => {
         levelBAandAbove={levelBAandAbove}
         levelA2={levelA2}
         needsImprovement={needsImprovement}
-        maxSalary={maxSalary}        loading={loading}
+        loading={loading}
         studentsLength={students.length}
         activeTabLabel={activeTab.label}
       />
