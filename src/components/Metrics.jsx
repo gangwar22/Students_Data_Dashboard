@@ -12,6 +12,7 @@ const Metrics = ({
   levelBAandAbove, 
   levelA2, 
   needsImprovement,
+  highestSalary = '0',
   loading,
   studentsLength,
   activeTabLabel
@@ -71,8 +72,8 @@ const Metrics = ({
             colorTheme="purple"
           />
           <MetricCard
-            title="Avg. Salary"
-            value="Coming Soon"
+            title="Common Salary"
+            value={highestSalary}
             icon={<UserCheck className="w-6 h-6" />}
             colorTheme="emerald"
           />
