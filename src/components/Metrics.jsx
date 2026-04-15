@@ -7,6 +7,8 @@ const Metrics = ({
   isPlacementDashboard = false,
   totalStudents, 
   activeStudents, 
+  activeBoysCount,
+  activeGirlsCount,
   boysCount, 
   girlsCount, 
   levelBAandAbove, 
@@ -61,13 +63,13 @@ const Metrics = ({
         <>
           <MetricCard
             title="Boys Placed"
-            value={boysCount}
+            value={activeBoysCount}
             icon={<User className="w-6 h-6 text-blue-500" />}
             colorTheme="blue"
           />
           <MetricCard
             title="Girls Placed"
-            value={girlsCount}
+            value={activeGirlsCount}
             icon={<GraduationCap className="w-6 h-6 text-pink-500" />}
             colorTheme="purple"
           />
@@ -87,14 +89,14 @@ const Metrics = ({
             colorTheme="emerald"
           />
           <MetricCard
-            title="Total Boys"
-            value={boysCount}
+            title="Active Boys"
+            value={activeBoysCount}
             icon={<User className="w-6 h-6 text-blue-500" />}
             colorTheme="blue"
           />
           <MetricCard
-            title="Total Girls"
-            value={girlsCount}
+            title="Active Girls"
+            value={activeGirlsCount}
             icon={<GraduationCap className="w-6 h-6 text-pink-500" />}
             colorTheme="purple"
           />

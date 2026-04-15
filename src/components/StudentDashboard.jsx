@@ -487,26 +487,37 @@ const StudentDashboard = () => {
         transform: (value) => value ? String(value).trim() : '',
         complete: (results) => {
           if (results.data && results.data.length > 0) {
-            const mappedData = results.data.map(row => ({
-              Name: (row['Name '] || row['Name'] || row['Name  '] || '').trim() || 'Unknown',
-              Email: row['Email'],
-              Gender: row['Gender '] || row['Gender'] || row['`Gender'],
-              'Joining Date': row['Joining Date '] || row['Joining Date'],
-              'Joining Month': row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'],
-              Education: row['Education'] || row['Students Level'],
-              House: row['Students House'] || row['House'],
-              Team: row['Team '] || row['Team'] || row['Leader'] || row['Team (AA)'],
-              School: row['School'] || row['SOP/SOB'],
-              'Student Type': row['Students OLD & NEW'] || row['Student Type'],
-              'Current Status': row['Status'] || row['Current Status'] || row['Students Status'],
-              'Dropout Date': row['Dropout Date'],
-              Address: row['Address'],
-              'Local Area': row['Local Area'] || row['Locak Area'] || row['LocalArea'],
-              'Panchayat/city': row['Panchayat / City'] || row['Panchayat/city'] || row['City'],
-              Phone: row['Student Phone Number '] || row['Phone'] || row['Contact Number 1'],
-              'Parent Info': `${row['Faather Name '] || ''} / ${row['Parents Phone number '] || ''}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
-              Feedback: row['Feedback Update'] || row['Where is improvement needed?'] || ''
-            })).filter(s => s.Name && s.Name !== 'Unknown' && s.Name.toLowerCase() !== 'name');
+            const mappedData = results.data.map(row => {
+              // Handle duplicate 'Status' columns or hidden characters
+              const statusValues = Object.entries(row)
+                .filter(([key]) => key.toLowerCase().includes('status'))
+                .map(([, val]) => String(val || '').toLowerCase().trim());
+              
+              const isInCampus = statusValues.some(v => v === 'in');
+              const genderValue = (row['Gender '] || row['Gender'] || row['`Gender'] || '').trim();
+
+              return {
+                Name: (row['Name '] || row['Name'] || row['Name  '] || '').trim() || 'Unknown',
+                Email: row['Email'],
+                Gender: genderValue,
+                'Joining Date': row['Joining Date '] || row['Joining Date'],
+                'Joining Month': row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'],
+                Education: row['Education'] || row['Students Level'],
+                House: row['Students House'] || row['House'],
+                Team: row['Team '] || row['Team'] || row['Leader'] || row['Team (AA)'],
+                School: row['School'] || row['SOP/SOB'],
+                'Student Type': row['Students OLD & NEW'] || row['Student Type'],
+                'Current Status': row['Status'] || row['Current Status'] || row['Students Status'],
+                'Is In Campus': isInCampus,
+                'Dropout Date': row['Dropout Date'],
+                Address: row['Address'],
+                'Local Area': row['Local Area'] || row['Locak Area'] || row['LocalArea'],
+                'Panchayat/city': row['Panchayat / City'] || row['Panchayat/city'] || row['City'],
+                Phone: row['Student Phone Number '] || row['Phone'] || row['Contact Number 1'],
+                'Parent Info': `${row['Faather Name '] || ''} / ${row['Parents Phone number '] || ''}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
+                Feedback: row['Feedback Update'] || row['Where is improvement needed?'] || ''
+              };
+            }).filter(s => s.Name && s.Name !== 'Unknown' && s.Name.toLowerCase() !== 'name');
 
             if (mappedData.length > 0) {
               setStudents(mappedData);
@@ -579,11 +590,28 @@ const StudentDashboard = () => {
   const isPlacementDashboard = activeTab.id === 'placement';
   const totalStudents = filteredStudents.length;
 
-  const activeStudents = !isEnglishDashboard ? (isPlacementDashboard ? filteredStudents.length : filteredStudents.filter(s => {
+  const activeStudentsList = !isEnglishDashboard ? (isPlacementDashboard ? filteredStudents : filteredStudents.filter(s => {
+    // Check if the student is explicitly marked as "in" campus in the main sheet or has active status
+    const isInCampus = s['Is In Campus'] === true;
     const status = (s['Current Status'] || '').toLowerCase().trim();
-    return status === 'in' || status === 'active' || status === 'in campus';
-  }).length) : 0;
+    // In Main sheet, status 'in' is the primary indicator
+    const isActiveStatus = status === 'in' || status === 'active' || status === 'in campus';
+    
+    // Additional debug: console.log(s.Name, status, isInCampus);
+    return isInCampus || isActiveStatus;
+  })) : [];
 
+  const activeStudents = activeStudentsList.length;
+
+  const activeGirlsCount = activeStudentsList.filter(s => {
+    const g = String(s.Gender || '').toLowerCase().trim();
+    return g === 'f' || g === 'female' || g === 'girls';
+  }).length;
+
+  const activeBoysCount = activeStudentsList.filter(s => {
+    const g = String(s.Gender || '').toLowerCase().trim();
+    return g === 'm' || g === 'male' || g === 'boys';
+  }).length;
 
   const girlsCount = !isEnglishDashboard ? filteredStudents.filter(s => s.Gender && (s.Gender.toLowerCase() === 'f' || s.Gender.toLowerCase() === 'female')).length : 0;
 
@@ -758,6 +786,8 @@ const StudentDashboard = () => {
         isPlacementDashboard={isPlacementDashboard}
         totalStudents={totalStudents}
         activeStudents={activeStudents}
+        activeBoysCount={activeBoysCount}
+        activeGirlsCount={activeGirlsCount}
         boysCount={boysCount}
         girlsCount={girlsCount}
         levelBAandAbove={levelBAandAbove}
