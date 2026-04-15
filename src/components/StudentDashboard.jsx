@@ -295,7 +295,9 @@ const StudentDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(url);
+      // Add timestamp to bypass any browser or proxy caching
+      const freshUrl = `${url}&t=${new Date().getTime()}`;
+      const response = await fetch(freshUrl);
       if (!response.ok) throw new Error("Failed to fetch English Level CSV.");
       const text = await response.text();
 
@@ -357,9 +359,10 @@ const StudentDashboard = () => {
     setLoading(true);
     setError(null);
     try {
+      const timestamp = new Date().getTime();
       const responses = await Promise.all([
-        fetch(PLACEMENT_URLS.all),
-        fetch(PLACEMENT_URLS.batch2425)
+        fetch(`${PLACEMENT_URLS.all}&t=${timestamp}`),
+        fetch(`${PLACEMENT_URLS.batch2425}&t=${timestamp}`)
       ]);
 
       const texts = await Promise.all(responses.map(r => {
@@ -466,7 +469,9 @@ const StudentDashboard = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(url);
+      // Add timestamp to ensure data is fetched fresh from Google Sheets every time
+      const freshUrl = `${url}&t=${new Date().getTime()}`;
+      const response = await fetch(freshUrl);
       if (!response.ok) throw new Error("Failed to fetch CSV.");
       const text = await response.text();
       
