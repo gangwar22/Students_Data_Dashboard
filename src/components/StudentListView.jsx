@@ -8,6 +8,7 @@ const StudentListView = ({
   filteredStudents, 
   isEnglishDashboard, 
   isPlacementDashboard = false,
+  isDropoutDashboard = false,
   setSelectedStudent
 }) => {
   if (filteredStudents.length === 0) {
@@ -30,6 +31,7 @@ const StudentListView = ({
         students={filteredStudents} 
         isEnglishData={isEnglishDashboard} 
         isPlacementData={isPlacementDashboard} 
+        isDropoutData={isDropoutDashboard}
       />
 
       {isEnglishDashboard && (
@@ -69,6 +71,7 @@ const StudentListView = ({
         students={filteredStudents}
         onSelectStudent={setSelectedStudent}
         isPlacementDashboard={isPlacementDashboard}
+        isDropoutDashboard={isDropoutDashboard}
       />
     </>
   );

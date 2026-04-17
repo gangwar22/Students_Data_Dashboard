@@ -23,7 +23,8 @@ const TABS = [
   { id: 'sop', label: 'SOP Data' },
   { id: 'sob', label: 'SOB Data' },
   { id: 'english', label: 'English Level' },
-  { id: 'placement', label: 'Placement Data' }
+  { id: 'placement', label: 'Placement Data' },
+  { id: 'dropout', label: 'Dropout Data' }
 ];
 
 const MAIN_URLS = {
@@ -32,16 +33,17 @@ const MAIN_URLS = {
   sob: 'https://docs.google.com/spreadsheets/d/1k2pJyCAW3hjNw3ElhG4Rj3rFIEKeswXflTq5lKjmDe4/export?format=csv&gid=30053432'
 };
 
+const DROPOUT_URLS = {
+  all: 'https://docs.google.com/spreadsheets/d/1cmdSpfLe9Qm_MpxdgBqULdPv9fR8tGRiYNGMbxEWjeI/export?format=csv&gid=1537583176',
+  batch2425: 'https://docs.google.com/spreadsheets/d/1cmdSpfLe9Qm_MpxdgBqULdPv9fR8tGRiYNGMbxEWjeI/export?format=csv&gid=1238114973'
+};
+
 const BASE_ENGLISH_URL = 'https://docs.google.com/spreadsheets/d/1_TeEWuTC6DgkDW5GkY910rLzS4ScFspROQHXpWDVamM/export?format=csv&gid=';
 const PLACEMENT_URLS = {
   all: 'https://docs.google.com/spreadsheets/d/1cmdSpfLe9Qm_MpxdgBqULdPv9fR8tGRiYNGMbxEWjeI/export?format=csv&gid=0',
   batch2425: 'https://docs.google.com/spreadsheets/d/1cmdSpfLe9Qm_MpxdgBqULdPv9fR8tGRiYNGMbxEWjeI/export?format=csv&gid=1626127241'
 };
 const PLACEMENT_BATCH_OPTIONS = ['2023', '2024', '2025', '2026'];
-
-const getPlacementUrlForBatch = (batch) => (
-  batch === '2024' || batch === '2025' ? PLACEMENT_URLS.batch2425 : PLACEMENT_URLS.all
-);
 
 const pickFirstValue = (row, keys) => {
   for (const key of keys) {
@@ -201,6 +203,9 @@ const StudentDashboard = () => {
   const [filterTeam, setFilterTeam] = useState('');
   const [filterOverallLevel, setFilterOverallLevel] = useState('');
   const [filterPlacementBatch, setFilterPlacementBatch] = useState('all');
+  const [filterPlacementSop, setFilterPlacementSop] = useState('');
+  const [filterPlacementSob, setFilterPlacementSob] = useState('');
+  const [filterDropoutYear, setFilterDropoutYear] = useState('all');
 
   const updateGid = (id, newGid) => {
     const updated = englishMonths.map(m => m.id === id ? { ...m, gid: newGid } : m);
@@ -240,6 +245,9 @@ const StudentDashboard = () => {
     setFilterTeam('');
     setFilterOverallLevel('');
     setFilterPlacementBatch('all');
+    setFilterPlacementSop('');
+    setFilterPlacementSob('');
+    setFilterDropoutYear('all');
   };
 
   const handleSync = () => {
@@ -247,6 +255,8 @@ const StudentDashboard = () => {
       fetchEnglishCSV(BASE_ENGLISH_URL + activeEnglishMonth.gid);
     } else if (activeTab.id === 'placement') {
       fetchPlacementCSV(filterPlacementBatch);
+    } else if (activeTab.id === 'dropout') {
+      fetchDropoutCSV(filterDropoutYear);
     } else {
       fetchCSV(MAIN_URLS[activeTab.id]);
     }
@@ -465,6 +475,75 @@ const StudentDashboard = () => {
     }
   }, []);
 
+  const fetchDropoutCSV = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const timestamp = new Date().getTime();
+      const responses = await Promise.all([
+        fetch(`${DROPOUT_URLS.all}&t=${timestamp}`),
+        fetch(`${DROPOUT_URLS.batch2425}&t=${timestamp}`)
+      ]);
+
+      const texts = await Promise.all(responses.map(r => {
+        if (!r.ok) throw new Error("Failed to fetch one of the Dropout sheets.");
+        return r.text();
+      }));
+
+      let allMappedData = [];
+
+      texts.forEach(text => {
+        let lines = text.split(/\r?\n/);
+        const headerIdx = lines.findIndex(line => {
+          const lower = line.toLowerCase();
+          return (lower.includes('student') || lower.includes('name')) && (lower.includes('dropout') || lower.includes('reason') || lower.includes('date'));
+        });
+        if (headerIdx !== -1) {
+          lines = lines.slice(headerIdx);
+        }
+
+        const parsed = Papa.parse(lines.join('\n'), {
+          header: true,
+          skipEmptyLines: true,
+          transformHeader: (header) => header ? String(header).trim() : '',
+          transform: (value) => value ? String(value).trim() : '',
+        });
+
+        if (parsed.data && parsed.data.length > 0) {
+          const mappedData = parsed.data.map(row => {
+            const name = pickFirstValue(row, ['Student', 'Student Name', 'Name', 'Student name']);
+            const dropoutDate = pickFirstValue(row, ['Date of leaving', 'Dropout Date', 'Date of Leaving', 'Left Date']);
+            const reason = pickFirstValue(row, ['Reason for leaving', 'Reason', 'Dropout Reason']);
+            const year = extractPlacementYear(dropoutDate);
+
+            return {
+              ...row,
+              Name: name || 'Unknown',
+              'Dropout Date': dropoutDate,
+              'Reason for leaving': reason,
+              'Job Year': year, // Reuse Job Year for filtering consistency
+              Year: year,
+              Gender: pickFirstValue(row, ['Gender', 'Gander']),
+              House: pickFirstValue(row, ['School', 'House']),
+              'Current Status': 'Dropout'
+            };
+          }).filter(s => (
+            s.Name &&
+            s.Name !== 'Unknown' &&
+            !['student', 'student name', 'name', 's no'].includes(s.Name.toLowerCase())
+          ));
+          allMappedData = [...allMappedData, ...mappedData];
+        }
+      });
+
+      setStudents(allMappedData);
+      setLoading(false);
+    } catch (err) {
+      setError(`Network error: ${err.message}`);
+      setLoading(false);
+    }
+  }, []);
+
   const fetchCSV = useCallback(async (url) => {
     setLoading(true);
     setError(null);
@@ -563,10 +642,12 @@ const StudentDashboard = () => {
     } else if (activeTab.id === 'placement') {
       // Changed: Always fetch the appropriate URL but handle local filtering in useMemo
       fetchPlacementCSV(filterPlacementBatch);
+    } else if (activeTab.id === 'dropout') {
+      fetchDropoutCSV(filterDropoutYear);
     } else {
       fetchCSV(MAIN_URLS[activeTab.id]);
     }
-  }, [activeTab, activeEnglishMonth, filterPlacementBatch, fetchEnglishCSV, fetchPlacementCSV, fetchCSV]);
+  }, [activeTab, activeEnglishMonth, filterPlacementBatch, filterDropoutYear, fetchEnglishCSV, fetchPlacementCSV, fetchDropoutCSV, fetchCSV]);
 
 
 
@@ -586,16 +667,39 @@ const StudentDashboard = () => {
            (student['Job Year'] && String(student['Job Year']).includes(filterPlacementBatch)))
         : true;
 
-      return matchSearch && matchMonth && matchHouse && matchStatus && matchTeam && matchLevel && matchPlacementBatch;
+      const matchPlacementSop = (activeTab.id === 'placement' && filterPlacementSop)
+        ? (String(student.SOP || '').trim() !== '' || 
+           String(student.Education || '').toUpperCase().includes('SOP') || 
+           String(student.School || '').toUpperCase().includes('SOP'))
+        : true;
+
+      const matchPlacementSob = (activeTab.id === 'placement' && filterPlacementSob)
+        ? (String(student.SOB || '').trim() !== '' || 
+           String(student.Education || '').toUpperCase().includes('SOB') || 
+           String(student.School || '').toUpperCase().includes('SOB') ||
+           String(student.Course || '').toUpperCase().includes('CRM') ||
+           String(student.Course || '').toUpperCase().includes('G-SUITE'))
+        : true;
+
+      // Improved dropout year matching
+      const matchDropoutYear = (activeTab.id === 'dropout' && filterDropoutYear !== 'all')
+        ? (String(student.Year) === filterDropoutYear || 
+           (student['Job Year'] && String(student['Job Year']).includes(filterDropoutYear)))
+        : true;
+
+      return matchSearch && matchMonth && matchHouse && matchStatus && matchTeam && matchLevel && 
+             matchPlacementBatch && matchPlacementSop && matchPlacementSob && matchDropoutYear;
     });
-  }, [students, searchQuery, filterMonth, filterHouse, filterStatus, filterTeam, filterOverallLevel, activeTab.id, filterPlacementBatch]);
+  }, [students, searchQuery, filterMonth, filterHouse, filterStatus, filterTeam, filterOverallLevel, activeTab.id, 
+      filterPlacementBatch, filterPlacementSop, filterPlacementSob, filterDropoutYear]);
 
   // Derived Metrics
   const isEnglishDashboard = activeTab.id === 'english';
   const isPlacementDashboard = activeTab.id === 'placement';
+  const isDropoutDashboard = activeTab.id === 'dropout';
   const totalStudents = filteredStudents.length;
 
-  const activeStudentsList = !isEnglishDashboard ? (isPlacementDashboard ? filteredStudents : filteredStudents.filter(s => {
+  const activeStudentsList = !isEnglishDashboard ? (isPlacementDashboard || isDropoutDashboard ? filteredStudents : filteredStudents.filter(s => {
     // Check if the student is explicitly marked as "in" campus in the main sheet or has active status
     const isInCampus = s['Is In Campus'] === true;
     const status = (s['Current Status'] || '').toLowerCase().trim();
@@ -677,6 +781,8 @@ const StudentDashboard = () => {
   const uniqueHouses = [...new Set(students.map(s => s.House).filter(Boolean))].sort();
   const uniqueStatuses = [...new Set(students.map(s => s['Current Status']).filter(Boolean))].sort();
   const uniqueTeams = [...new Set(students.map(s => s.Team).filter(Boolean))].sort();
+  const uniqueSops = isPlacementDashboard ? [...new Set(students.map(s => s.SOP).filter(Boolean))].sort() : [];
+  const uniqueSobs = isPlacementDashboard ? [...new Set(students.map(s => s.SOB).filter(Boolean))].sort() : [];
 
   if (selectedStudent) {
     return (
@@ -789,6 +895,7 @@ const StudentDashboard = () => {
       <Metrics 
         isEnglishDashboard={isEnglishDashboard}
         isPlacementDashboard={isPlacementDashboard}
+        isDropoutDashboard={isDropoutDashboard}
         totalStudents={totalStudents}
         activeStudents={activeStudents}
         activeBoysCount={activeBoysCount}
@@ -839,6 +946,7 @@ const StudentDashboard = () => {
           <Filters 
             isEnglishDashboard={isEnglishDashboard}
             isPlacementDashboard={isPlacementDashboard}
+            isDropoutDashboard={isDropoutDashboard}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             filterMonth={filterMonth}
@@ -853,13 +961,22 @@ const StudentDashboard = () => {
             setFilterOverallLevel={setFilterOverallLevel}
             filterPlacementBatch={filterPlacementBatch}
             setFilterPlacementBatch={setFilterPlacementBatch}
+            filterPlacementSop={filterPlacementSop}
+            setFilterPlacementSop={setFilterPlacementSop}
+            filterPlacementSob={filterPlacementSob}
+            setFilterPlacementSob={setFilterPlacementSob}
             placementBatchOptions={PLACEMENT_BATCH_OPTIONS}
+            filterDropoutYear={filterDropoutYear}
+            setFilterDropoutYear={setFilterDropoutYear}
+            dropoutYearOptions={['2022', '2023', '2024', '2025', '2026']}
             uniqueMonths={uniqueMonths}
             uniqueHouses={uniqueHouses}
             uniqueStatuses={uniqueStatuses}
             uniqueTeams={uniqueTeams}
             uniqueLevels={uniqueLevels}
             uniqueMentors={uniqueMentors}
+            uniqueSops={uniqueSops}
+            uniqueSobs={uniqueSobs}
             clearFilters={clearFilters}
             showProgress={showProgress}
             setShowProgress={setShowProgress}
@@ -880,6 +997,7 @@ const StudentDashboard = () => {
               filteredStudents={filteredStudents}
               isEnglishDashboard={isEnglishDashboard}
               isPlacementDashboard={isPlacementDashboard}
+              isDropoutDashboard={isDropoutDashboard}
               setSelectedStudent={setSelectedStudent}
             />
           )}

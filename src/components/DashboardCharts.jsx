@@ -18,7 +18,7 @@ const CustomTooltip = ({ active, payload, label }) => {
   return null;
 };
 
-const DashboardCharts = ({ students, isEnglishData, isPlacementData = false }) => {
+const DashboardCharts = ({ students, isEnglishData, isPlacementData = false, isDropoutData = false }) => {
   if (isEnglishData) {
     // English Data: Aggregate by Overall Level
     const levelCounts = students.reduce((acc, student) => {
@@ -184,6 +184,19 @@ const DashboardCharts = ({ students, isEnglishData, isPlacementData = false }) =
       .slice(0, 8);
     mainChartTitle = "Job Fields";
     mainChartSub = "Distribution of placements by field";
+  } else if (isDropoutData) {
+    const reasonCounts = students.reduce((acc, s) => {
+      let reason = (s['Reason for leaving'] || s['Reason'] || 'Not Specified').trim();
+      if (reason.length > 20) reason = reason.substring(0, 17) + '...';
+      acc[reason] = (acc[reason] || 0) + 1;
+      return acc;
+    }, {});
+    mainChartData = Object.keys(reasonCounts)
+      .map(k => ({ name: k, Students: reasonCounts[k] }))
+      .sort((a,b) => b.Students - a.Students)
+      .slice(0, 8);
+    mainChartTitle = "Dropout Reasons";
+    mainChartSub = "Common reasons for discontinuing";
   }
 
   return (
@@ -215,8 +228,8 @@ const DashboardCharts = ({ students, isEnglishData, isPlacementData = false }) =
       
       <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-2xl p-8 rounded-[2rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.1),0_6px_0_rgba(203,213,225,0.7)] dark:shadow-[0_15px_40px_-15px_rgba(0,0,0,0.5),0_6px_0_rgba(30,41,59,0.7)] border-t-2 border-l-2 border-white/80 dark:border-slate-700/50 hover:-translate-y-1 hover:shadow-2xl transition-all duration-300">
         <div className="mb-8">
-          <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 drop-shadow-sm tracking-tight">{isPlacementData ? "Placement Status" : "Status Distribution"}</h3>
-          <p className="text-[15px] text-slate-500 dark:text-slate-400 font-bold mt-1">{isPlacementData ? "Overview of hiring progress" : "Current state of enrollments"}</p>
+          <h3 className="text-2xl font-black text-slate-800 dark:text-slate-100 drop-shadow-sm tracking-tight">{isPlacementData ? "Placement Status" : (isDropoutData ? "Gender Distribution" : "Status Distribution")}</h3>
+          <p className="text-[15px] text-slate-500 dark:text-slate-400 font-bold mt-1">{isPlacementData ? "Overview of hiring progress" : (isDropoutData ? "Breakdown of dropouts by gender" : "Current state of enrollments")}</p>
         </div>
         <div className="h-[450px] relative">
           <div className="absolute inset-0 bg-purple-100/20 dark:bg-purple-900/10 rounded-2xl -z-10"></div>
@@ -231,7 +244,14 @@ const DashboardCharts = ({ students, isEnglishData, isPlacementData = false }) =
                 ))}
               </defs>
               <Pie
-                data={statusData}
+                data={isDropoutData ? (() => {
+                  const genderCounts = students.reduce((acc, s) => {
+                    const g = (s.Gender || 'Other').trim();
+                    acc[g] = (acc[g] || 0) + 1;
+                    return acc;
+                  }, {});
+                  return Object.keys(genderCounts).map(g => ({ name: g, value: genderCounts[g] }));
+                })() : statusData}
                 cx="50%"
                 cy="40%"
                 innerRadius={70}

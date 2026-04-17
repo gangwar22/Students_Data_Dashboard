@@ -1,9 +1,10 @@
-﻿import React from "react";
+import React from "react";
 import { Search, FilterX, TrendingUp } from "lucide-react";
 
 const Filters = ({
   isEnglishDashboard,
   isPlacementDashboard = false,
+  isDropoutDashboard = false,
   searchQuery,
   setSearchQuery,
   filterMonth,
@@ -18,7 +19,16 @@ const Filters = ({
   setFilterOverallLevel,
   filterPlacementBatch = "all",
   setFilterPlacementBatch = () => {},
+  filterPlacementSop = "",
+  setFilterPlacementSop = () => {},
+  filterPlacementSob = "",
+  setFilterPlacementSob = () => {},
   placementBatchOptions = [],
+  uniqueSops = [],
+  uniqueSobs = [],
+  filterDropoutYear = "all",
+  setFilterDropoutYear = () => {},
+  dropoutYearOptions = [],
   uniqueMonths,
   uniqueHouses,
   uniqueStatuses,
@@ -67,22 +77,22 @@ const Filters = ({
         <div className="relative group">
           <label className="block text-[11px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Search by Name</label>
           <div className="relative">
-            <Search className="absolute left-5 top-1\/2 -translate-y-1\/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
             <input
               type="text"
               placeholder="Start typing student name..."
-              className="w-full pl-14 pr-6 py-4 bg-slate-100\/50 dark:bg-slate-900\/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500\/10 focus:border-b-indigo-500 outline-none transition-all font-bold placeholder:text-slate-400 dark:placeholder:text-slate-600 placeholder:font-medium"
+              className="w-full pl-14 pr-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-b-indigo-500 outline-none transition-all font-bold placeholder:text-slate-400 dark:placeholder:text-slate-600 placeholder:font-medium"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
         </div>
 
-        {!isEnglishDashboard && !isPlacementDashboard && (
+        {!isEnglishDashboard && !isPlacementDashboard && !isDropoutDashboard && (
           <div className="relative group">
             <label className="block text-[11px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Joining Month</label>
             <select
-              className="w-full px-6 py-4 bg-slate-100\/50 dark:bg-slate-900\/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500\/10 focus:border-b-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-b-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
             >
@@ -93,15 +103,80 @@ const Filters = ({
         )}
 
         {isPlacementDashboard && (
+          <>
+            <div className="relative group">
+              <label className="block text-[11px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Job Year</label>
+              <select
+                className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-b-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+                value={filterPlacementBatch}
+                onChange={(e) => setFilterPlacementBatch(e.target.value)}
+              >
+                <option value="all">All Years</option>
+                {placementBatchOptions.map(option => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative group">
+              <label className="block text-[11px] font-black text-indigo-500 dark:text-indigo-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Filter by Type</label>
+              <div className="flex bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-2xl border-b-2 border-slate-200 dark:border-slate-700">
+                <button
+                  onClick={() => {
+                    setFilterPlacementSop("");
+                    setFilterPlacementSob("");
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                    (!filterPlacementSop && !filterPlacementSob)
+                      ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 shadow-sm" 
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => {
+                    setFilterPlacementSop("SOP");
+                    setFilterPlacementSob("");
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                    filterPlacementSop 
+                      ? "bg-white dark:bg-slate-800 text-indigo-600 shadow-sm" 
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  }`}
+                >
+                  SOP
+                </button>
+                <button
+                  onClick={() => {
+                    setFilterPlacementSob("SOB");
+                    setFilterPlacementSop("");
+                  }}
+                  className={`flex-1 py-3 px-4 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                    filterPlacementSob 
+                      ? "bg-white dark:bg-slate-800 text-purple-600 shadow-sm" 
+                      : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  }`}
+                >
+                  SOB
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {isDropoutDashboard && (
           <div className="relative group">
-            <label className="block text-[11px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Job Year</label>
+            <label className="block text-[11px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Dropout Year</label>
             <select
-              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-b-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
-              value={filterPlacementBatch}
-              onChange={(e) => setFilterPlacementBatch(e.target.value)}
+              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-b-rose-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+              value={filterDropoutYear}
+              onChange={(e) => setFilterDropoutYear(e.target.value)}
             >
-              <option value="all">All Job Years</option>
-              {placementBatchOptions.map(batch => <option key={batch} value={batch}>{batch}</option>)}
+              <option value="all">All Years</option>
+              {dropoutYearOptions.map(option => (
+                <option key={option} value={option}>{option}</option>
+              ))}
             </select>
           </div>
         )}
@@ -110,7 +185,7 @@ const Filters = ({
           <div className="relative group">
             <label className="block text-[11px] font-black text-rose-500 dark:text-rose-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Overall Level</label>
             <select
-              className="w-full px-6 py-4 bg-slate-100\/50 dark:bg-slate-900\/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-rose-500\/10 focus:border-b-rose-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-rose-500/10 focus:border-b-rose-500 outline-none transition-all font-bold appearance-none cursor-pointer"
               value={filterOverallLevel}
               onChange={(e) => setFilterOverallLevel(e.target.value)}
             >
@@ -120,11 +195,11 @@ const Filters = ({
           </div>
         )}
 
-        {!isEnglishDashboard && (
+        {!isEnglishDashboard && !isPlacementDashboard && !isDropoutDashboard && (
           <div className="relative group">
             <label className="block text-[11px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Student House</label>
             <select
-              className="w-full px-6 py-4 bg-slate-100\/50 dark:bg-slate-900\/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500\/10 focus:border-b-emerald-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-b-emerald-500 outline-none transition-all font-bold appearance-none cursor-pointer"
               value={filterHouse}
               onChange={(e) => setFilterHouse(e.target.value)}
             >
@@ -134,11 +209,11 @@ const Filters = ({
           </div>
         )}
 
-        {!isEnglishDashboard && (
+        {!isEnglishDashboard && !isPlacementDashboard && !isDropoutDashboard && (
           <div className="relative group">
             <label className="block text-[11px] font-black text-amber-500 dark:text-amber-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Current Status</label>
             <select
-              className="w-full px-6 py-4 bg-slate-100\/50 dark:bg-slate-900\/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-amber-500\/10 focus:border-b-amber-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-amber-500/10 focus:border-b-amber-500 outline-none transition-all font-bold appearance-none cursor-pointer"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -160,7 +235,7 @@ const Filters = ({
               {uniqueMentors.map(mentor => <option key={mentor} value={mentor}>{mentor}</option>)}
             </select>
           </div>
-        ) : (
+        ) : (!isPlacementDashboard && !isDropoutDashboard) ? (
           <div className="relative group">
             <label className="block text-[11px] font-black text-pink-500 dark:text-pink-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Filter by Team</label>
             <select
@@ -172,7 +247,7 @@ const Filters = ({
               {uniqueTeams.map(team => <option key={team} value={team}>{team}</option>)}
             </select>
           </div>
-        )}
+        ) : null}
 
         <div className="flex items-end">
           <button

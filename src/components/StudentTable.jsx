@@ -40,16 +40,17 @@ const getLevelDot = (level) => {
   return 'bg-slate-500 shadow-[0_0_8px_rgba(100,116,139,0.8)] dark:bg-slate-400';
 };
 
-const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false }) => {
+const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false, isDropoutDashboard = false }) => {
   const isEnglishData = students.length > 0 && students[0].Reading !== undefined;
   const isPlacementData = isPlacementDashboard;
+  const isDropoutData = isDropoutDashboard;
   
   return (
     <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.1),0_6px_0_rgba(203,213,225,0.7)] dark:shadow-[0_15px_40px_-15px_rgba(0,0,0,0.5),0_6px_0_rgba(30,41,59,0.7)] border-t-2 border-l-2 border-white/80 dark:border-slate-700/80 mt-8 overflow-hidden transition-colors duration-300">
       <div className="p-8 px-10 border-b-[3px] border-slate-200/50 dark:border-slate-700/50 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-blue-400/10 to-purple-400/10 rounded-full blur-3xl"></div>
         <div className="relative z-10">
-          <h3 className="text-2xl font-black text-slate-800 dark:text-white drop-shadow-sm tracking-tight">Student Directory</h3>
+          <h3 className="text-2xl font-black text-slate-800 dark:text-white drop-shadow-sm tracking-tight">{isDropoutData ? 'Dropout Directory' : 'Student Directory'}</h3>
           <p className="text-[15px] font-bold text-slate-500 dark:text-slate-400 mt-1">{students.length} record{students.length !== 1 && 's'} found in the database.</p>
         </div>
       </div>
@@ -58,7 +59,7 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false 
         <table className="w-full text-left border-collapse min-w-max">
           <thead>
             <tr className="bg-white/40 dark:bg-slate-800/40 border-b-2 border-slate-200 dark:border-slate-700/50 text-[13px] uppercase tracking-widest text-slate-500 dark:text-slate-400 font-extrabold transition-colors">
-              <th className="p-6 px-10 font-black">{isPlacementData ? 'Student' : 'Student Profile'}</th>
+              <th className="p-6 px-10 font-black">{isPlacementData || isDropoutData ? 'Student' : 'Student Profile'}</th>
               {isEnglishData ? (
                 <>
                   <th className="p-6 font-black whitespace-nowrap">Mentor</th>
@@ -70,6 +71,12 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false 
                   <th className="p-6 font-black whitespace-nowrap">Company</th>
                   <th className="p-6 font-black whitespace-nowrap">Salary Offered</th>
                   <th className="p-6 font-black whitespace-nowrap">Spent Time in NavGurukul</th>
+                </>
+              ) : isDropoutData ? (
+                <>
+                  <th className="p-6 font-black whitespace-nowrap">Reason for Leaving</th>
+                  <th className="p-6 font-black whitespace-nowrap">Dropout Date</th>
+                  <th className="p-6 font-black whitespace-nowrap">House / School</th>
                 </>
               ) : (
                 <>
@@ -84,7 +91,7 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false 
           <tbody className="divide-y-[3px] divide-slate-100/80 dark:divide-slate-700/50">
             {students.length === 0 ? (
               <tr>
-                <td colSpan={isPlacementData ? 5 : 5} className="p-16 text-center bg-slate-50/30 dark:bg-slate-800/30">
+                <td colSpan={isPlacementData || isDropoutData ? 5 : 5} className="p-16 text-center bg-slate-50/30 dark:bg-slate-800/30">
                   <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
                     <div className="w-20 h-20 bg-white dark:bg-slate-700/50 rounded-3xl flex items-center justify-center mb-5 border-b-4 border-slate-200 dark:border-slate-600 shadow-[0_5px_15px_rgba(0,0,0,0.05)] transform rotate-3">
                       <SearchX className="w-10 h-10 text-slate-400 dark:text-slate-500" />
@@ -157,6 +164,21 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false 
                         </td>
                         <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
                           {student['Spent time in NavGurukul'] || student['Spent Days in NavGurukul'] || '-'}
+                        </td>
+                      </>
+                    ) : isDropoutData ? (
+                      <>
+                        <td className="p-5 min-w-[200px]">
+                          <div className="text-[15px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm line-clamp-2 leading-tight">
+                            {student['Reason for leaving'] || '-'}
+                          </div>
+                        </td>
+                        <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
+                          {student['Dropout Date'] || student['Date of leaving'] || '-'}
+                        </td>
+                        <td className="p-5 min-w-[150px]">
+                          <div className="text-[15px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm truncate">{student.House || '-'}</div>
+                          <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400 mt-1 truncate transition-colors">{student.School || '-'}</div>
                         </td>
                       </>
                     ) : (

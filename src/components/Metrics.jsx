@@ -5,14 +5,13 @@ import MetricCard from "./MetricCard";
 const Metrics = ({ 
   isEnglishDashboard, 
   isPlacementDashboard = false,
+  isDropoutDashboard = false,
   totalStudents, 
   activeStudents, 
   activeBoysCount,
   activeGirlsCount,
-  boysCount, 
-  girlsCount, 
-  levelBAandAbove, 
-  levelA2, 
+  levelBAandAbove,
+  levelA2,
   needsImprovement,
   highestSalary = '0',
   loading,
@@ -33,7 +32,7 @@ const Metrics = ({
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
       <MetricCard
-        title={isPlacementDashboard ? "Students Placed" : (isEnglishDashboard ? "Tested Students" : "Total Students")}
+        title={isPlacementDashboard ? "Students Placed" : (isDropoutDashboard ? "Total Dropouts" : (isEnglishDashboard ? "Tested Students" : "Total Students"))}
         value={totalStudents}
         icon={<Users className="w-6 h-6" />}
         colorTheme="blue"
@@ -78,6 +77,21 @@ const Metrics = ({
             value={highestSalary}
             icon={<UserCheck className="w-6 h-6" />}
             colorTheme="emerald"
+          />
+        </>
+      ) : isDropoutDashboard ? (
+        <>
+          <MetricCard
+            title="Dropout Boys"
+            value={activeBoysCount}
+            icon={<User className="w-6 h-6 text-blue-500" />}
+            colorTheme="blue"
+          />
+          <MetricCard
+            title="Dropout Girls"
+            value={activeGirlsCount}
+            icon={<GraduationCap className="w-6 h-6 text-pink-500" />}
+            colorTheme="purple"
           />
         </>
       ) : (
