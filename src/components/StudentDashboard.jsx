@@ -924,6 +924,8 @@ const StudentDashboard = () => {
         activeGirlsCount={activeGirlsCount}
         boysCount={boysCount}
         girlsCount={girlsCount}
+        filteredBoysCount={boysCount}
+        filteredGirlsCount={girlsCount}
         levelBAandAbove={levelBAandAbove}
         levelA2={levelA2}
         needsImprovement={needsImprovement}

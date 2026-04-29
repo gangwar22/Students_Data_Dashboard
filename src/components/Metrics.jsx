@@ -16,7 +16,9 @@ const Metrics = ({
   highestSalary = '0',
   loading,
   studentsLength,
-  activeTabLabel
+  activeTabLabel,
+  filteredBoysCount = 0,
+  filteredGirlsCount = 0
 }) => {
   if (loading && studentsLength === 0) {
     return (
@@ -103,14 +105,14 @@ const Metrics = ({
             colorTheme="emerald"
           />
           <MetricCard
-            title="Active Boys"
-            value={activeBoysCount}
+            title="Boys"
+            value={filteredBoysCount}
             icon={<User className="w-6 h-6 text-blue-500" />}
             colorTheme="blue"
           />
           <MetricCard
-            title="Active Girls"
-            value={activeGirlsCount}
+            title="Girls"
+            value={filteredGirlsCount}
             icon={<GraduationCap className="w-6 h-6 text-pink-500" />}
             colorTheme="purple"
           />
