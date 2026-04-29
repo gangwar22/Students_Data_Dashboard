@@ -74,9 +74,9 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false,
                 </>
               ) : isDropoutData ? (
                 <>
-                  <th className="p-6 font-black whitespace-nowrap">Reason for Leaving</th>
                   <th className="p-6 font-black whitespace-nowrap">Dropout Date</th>
-                  <th className="p-6 font-black whitespace-nowrap">House / School</th>
+                  <th className="p-6 font-black whitespace-nowrap">Specify</th>
+                  <th className="p-6 font-black whitespace-nowrap">Reason</th>
                 </>
               ) : (
                 <>
@@ -168,17 +168,18 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false,
                       </>
                     ) : isDropoutData ? (
                       <>
-                        <td className="p-5 min-w-[200px]">
-                          <div className="text-[15px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm line-clamp-2 leading-tight">
-                            {student['Reason for leaving'] || '-'}
-                          </div>
-                        </td>
                         <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
                           {student['Dropout Date'] || student['Date of leaving'] || '-'}
                         </td>
-                        <td className="p-5 min-w-[150px]">
-                          <div className="text-[15px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm truncate">{student.House || '-'}</div>
-                          <div className="text-[13px] font-bold text-slate-500 dark:text-slate-400 mt-1 truncate transition-colors">{student.School || '-'}</div>
+                        <td className="p-5 max-w-[150px]">
+                          <div className="text-[14px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm truncate" title={student['Specify'] || student['Specify reason']}>
+                            {student['Specify'] || student['Specify reason'] || '-'}
+                          </div>
+                        </td>
+                        <td className="p-5 max-w-[200px]">
+                          <div className="text-[14px] font-bold text-slate-500 dark:text-slate-400 line-clamp-1 leading-tight" title={student['Reason for leaving'] || student['Reason']}>
+                            {student['Reason for leaving'] || student['Reason'] || '-'}
+                          </div>
                         </td>
                       </>
                     ) : (

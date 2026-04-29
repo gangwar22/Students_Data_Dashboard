@@ -436,16 +436,23 @@ const StudentDashboard = () => {
               'Spent time in NavGurukul': spentTime,
               'Joining Date': joiningCampusDate,
               'Joining Month': pickFirstValue(row, ['Job Month']) || getMonthToken(placementDate),
-              Education: pickFirstValue(row, ['Course', 'Academic Module']),
-              House: pickFirstValue(row, ['School']),
+              Education: pickFirstValue(row, ['Course', 'Academic Module', 'Educational Qualification']),
+              House: pickFirstValue(row, ['School', 'House', 'Students House']),
               Team: pickFirstValue(row, ['Type of job']) || company,
-              School: pickFirstValue(row, ['School']),
-              'Student Type': pickFirstValue(row, ['Academic Module', 'Course']),
+              School: pickFirstValue(row, ['School', 'SOP/SOB']),
+              'Student Type': pickFirstValue(row, ['Academic Module', 'Course', 'Students OLD & NEW']),
               'Current Status': currentWorkStatus || 'Placed',
               'Dropout Date': placementDate,
-              Address: pickFirstValue(row, ['Location']),
-              Phone: pickFirstValue(row, ['Contact number', 'Contact Number']),
-              Batch: batchFromRow
+              Address: pickFirstValue(row, ['Location', 'Address']),
+              'Local Area': pickFirstValue(row, ['Local Area', 'Locak Area', 'LocalArea']),
+              'Panchayat/city': pickFirstValue(row, ['Panchayat / City', 'Panchayat/city', 'City']),
+              Phone: pickFirstValue(row, ['Contact number', 'Contact Number', 'Student Phone Number ']),
+              'Parent Info': `${pickFirstValue(row, ['Faather Name ', 'Father Name'])} / ${pickFirstValue(row, ['Parents Phone number ', 'Parent Phone'])}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
+              Batch: batchFromRow,
+              SOP: row['SOP'] || '',
+              SOB: row['SOB'] || '',
+              Specify: row['Specify'] || row['Specify reason'] || '',
+              Reason: row['Reason'] || row['Reason for leaving'] || ''
             };
           }).filter(s => (
             s.Name &&
@@ -514,18 +521,33 @@ const StudentDashboard = () => {
             const name = pickFirstValue(row, ['Student', 'Student Name', 'Name', 'Student name']);
             const dropoutDate = pickFirstValue(row, ['Date of leaving', 'Dropout Date', 'Date of Leaving', 'Left Date']);
             const reason = pickFirstValue(row, ['Reason for leaving', 'Reason', 'Dropout Reason']);
+            const specify = pickFirstValue(row, ['Specify', 'Specify reason']);
             const year = extractPlacementYear(dropoutDate);
 
             return {
               ...row,
               Name: name || 'Unknown',
+              'Email': pickFirstValue(row, ['Email id', 'Mail ID', 'Email']),
               'Dropout Date': dropoutDate,
               'Reason for leaving': reason,
-              'Job Year': year, // Reuse Job Year for filtering consistency
+              'Reason': reason,
+              'Specify': specify,
+              'Job Year': year, 
               Year: year,
               Gender: pickFirstValue(row, ['Gender', 'Gander']),
-              House: pickFirstValue(row, ['School', 'House']),
-              'Current Status': 'Dropout'
+              'Joining Date': pickFirstValue(row, ['Date of joining Campus', 'Date of joining', 'Joining Date']),
+              'Joining Month': pickFirstValue(row, ['Job Month', 'Joinning Month', 'Joining Month']) || getMonthToken(dropoutDate),
+              Education: pickFirstValue(row, ['Course', 'Academic Module', 'Educational Qualification', 'Students Level']),
+              House: pickFirstValue(row, ['School', 'House', 'Students House']),
+              School: pickFirstValue(row, ['School', 'SOP/SOB']),
+              'Student Type': pickFirstValue(row, ['Academic Module', 'Course', 'Students OLD & NEW']),
+              'Current Status': 'Dropout',
+              Address: pickFirstValue(row, ['Location', 'Address']),
+              'Local Area': pickFirstValue(row, ['Local Area', 'Locak Area', 'LocalArea']),
+              'Panchayat/city': pickFirstValue(row, ['Panchayat / City', 'Panchayat/city', 'City']),
+              Phone: pickFirstValue(row, ['Contact number', 'Contact Number', 'Student Phone Number ']),
+              'Parent Info': `${pickFirstValue(row, ['Faather Name ', 'Father Name'])} / ${pickFirstValue(row, ['Parents Phone number ', 'Parent Phone'])}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
+              Feedback: row['Feedback Update'] || row['Where is improvement needed?'] || ''
             };
           }).filter(s => (
             s.Name &&
@@ -777,7 +799,7 @@ const StudentDashboard = () => {
   // Filter Options Data
   const uniqueMentors = isEnglishDashboard ? [...new Set(students.map(s => s.Mentor).filter(Boolean))].sort() : [];
   const uniqueLevels = isEnglishDashboard ? [...new Set(students.map(s => s['Over All Level']).filter(Boolean))].sort() : [];
-  const uniqueMonths = !isEnglishDashboard && !isPlacementDashboard ? [...new Set(students.map(s => s['Joining Month']).filter(Boolean))].sort() : [];
+  const uniqueMonths = !isEnglishDashboard && !isPlacementDashboard && !isDropoutDashboard ? [...new Set(students.map(s => s['Joining Month']).filter(Boolean))].sort() : [];
   const uniqueHouses = [...new Set(students.map(s => s.House).filter(Boolean))].sort();
   const uniqueStatuses = [...new Set(students.map(s => s['Current Status']).filter(Boolean))].sort();
   const uniqueTeams = [...new Set(students.map(s => s.Team).filter(Boolean))].sort();

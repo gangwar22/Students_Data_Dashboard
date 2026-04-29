@@ -12,12 +12,13 @@ const SelectedStudentProfile = ({
   activeTabId 
 }) => {
   const isPlacementRecord = activeTabId === 'placement';
+  const isDropoutRecord = activeTabId === 'dropout';
   const normalizeDetailKey = (key) => String(key || '')
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
-  const placementHiddenKeys = new Set([
+  const extraDetailsHiddenKeys = new Set([
     'name',
     'student',
     'student name',
@@ -45,10 +46,14 @@ const SelectedStudentProfile = ({
     'house',
     'student type',
     'education',
-    'feedback'
+    'feedback',
+    'specify',
+    'specify reason',
+    'reason',
+    'reason for leaving'
   ]);
 
-  const placementExtraDetails = isPlacementRecord
+  const extraDetails = (isPlacementRecord || isDropoutRecord)
     ? (() => {
       const seenKeys = new Set();
       const seenPairs = new Set();
@@ -61,7 +66,7 @@ const SelectedStudentProfile = ({
         if (!cleanValue) return false;
 
         const normalizedKey = normalizeDetailKey(cleanKey);
-        if (placementHiddenKeys.has(normalizedKey)) return false;
+        if (extraDetailsHiddenKeys.has(normalizedKey)) return false;
         if (seenKeys.has(normalizedKey)) return false;
 
         const normalizedPair = `${normalizedKey}::${cleanValue.toLowerCase()}`;
@@ -137,18 +142,20 @@ const SelectedStudentProfile = ({
                 { label: 'Joining Month', value: selectedStudent['Joining Month'] },
                 { label: 'Joining Date', value: selectedStudent['Joining Date'] },
                 { label: 'Status', value: selectedStudent['Current Status'] },
-                { label: 'Dropout Date', value: selectedStudent['Dropout Date'], placeholder: 'N/A' }
+                { label: 'Dropout Date', value: selectedStudent['Dropout Date'], placeholder: 'N/A' },
+                { label: 'Specify', value: selectedStudent.Specify || selectedStudent['Specify reason'], placeholder: 'N/A' },
+                { label: 'Reason', value: selectedStudent.Reason || selectedStudent['Reason for leaving'], placeholder: 'N/A' }
               ]}
             />
             {activeTabId === 'main' && <Timeline student={selectedStudent} />}
           </div>
         </div>
 
-        {isPlacementRecord && placementExtraDetails.length > 0 && (
+        {(isPlacementRecord || isDropoutRecord) && extraDetails.length > 0 && (
           <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2rem] p-8 border-t-2 border-l-2 border-white/80 dark:border-slate-700/80 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.1),0_6px_0_rgba(203,213,225,0.7)] dark:shadow-[0_15px_40px_-15px_rgba(0,0,0,0.5),0_6px_0_rgba(30,41,59,0.7)]">
-            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 mb-6">Other Placement Details</h3>
+            <h3 className="text-xl font-black text-slate-800 dark:text-slate-100 mb-6">Other {isPlacementRecord ? 'Placement' : 'Dropout'} Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {placementExtraDetails.map((item) => (
+              {extraDetails.map((item) => (
                 <div key={item.key} className="p-4 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-200/80 dark:border-slate-700/60">
                   <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">
                     {item.key}
