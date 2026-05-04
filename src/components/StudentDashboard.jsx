@@ -577,9 +577,24 @@ const StudentDashboard = () => {
       const text = await response.text();
       
       let lines = text.split(/\r?\n/);
+      
+      // Smart header detection for all tabs
       if (activeTab.id === 'main') {
         const headerRowIdx = lines.findIndex(line => line.includes('S No') && line.includes('Name'));
         if (headerRowIdx !== -1) {
+          lines = lines.slice(headerRowIdx);
+        }
+      } else if (activeTab.id === 'sop' || activeTab.id === 'sob') {
+        // For SOP/SOB, find header row with column names like "S NO", "Name", "Status", "House", etc.
+        // SOP has header at the beginning, SOB has it at the end
+        const headerRowIdx = lines.findIndex((line, idx) => {
+          const lower = line.toLowerCase();
+          // Check for typical header columns
+          return (lower.includes('name') || lower.includes('s no') || lower.includes('s.no')) && 
+                 (lower.includes('status') || lower.includes('house') || lower.includes('team') || lower.includes('joining'));
+        });
+        if (headerRowIdx !== -1) {
+          // Use only lines from header onwards (excludes data that comes before header, like in SOB)
           lines = lines.slice(headerRowIdx);
         }
       }
@@ -599,36 +614,57 @@ const StudentDashboard = () => {
                 .filter(([key]) => key.toLowerCase().includes('status'))
                 .map(([, val]) => String(val || '').toLowerCase().trim());
               
-              const isInCampus = statusValues.some(v => v === 'in');
-              const genderValue = (row['Gender '] || row['Gender'] || row['`Gender'] || '').trim();
+              const isInCampus = statusValues.some(v => v === 'in' || v === 'active');
+              const genderValue = (row['Gender '] || row['Gender'] || row['`Gender'] || row[' Gender'] || '').trim();
+
+              // Handle both SOP/SOB and Main sheet column names
+              const name = (row['Name '] || row['Name'] || row['Name  '] || '').trim() || 'Unknown';
+              const joiningDate = row['Joining Date '] || row['Joining Date'] || '';
+              const joiningMonth = row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'] || '';
+              const house = row['Students House'] || row['House'] || '';
+              const team = row['Team '] || row['Team'] || row['Leader'] || row['Team (AA)'] || '';
+              const status = row['Status'] || row['Current Status'] || row['Students Status'] || '';
+              const education = row['Education'] || row['Students Level'] || row['Team side level'] || '';
+              const school = row['School'] || row['SOP/SOB'] || '';
+              const studentType = row['Students OLD & NEW'] || row['Student Type'] || '';
+              const email = row['Email'] || '';
+              const address = row['Address'] || '';
+              const localArea = row['Local Area'] || row['Locak Area'] || row['LocalArea'] || '';
+              const panchayat = row['Panchayat / City'] || row['Panchayat/city'] || row['City'] || '';
+              const phone = row['Student Phone Number '] || row['Phone'] || row['Contact Number 1'] || '';
+              const fatherName = row['Faather Name '] || row['Father Name'] || '';
+              const parentPhone = row['Parents Phone number '] || row['Parent Phone'] || '';
+              const feedback = row['Feedback Update'] || row['Where is improvement needed?'] || '';
+              const course = row['Course'] || '';
 
               return {
-                Name: (row['Name '] || row['Name'] || row['Name  '] || '').trim() || 'Unknown',
-                Email: row['Email'],
+                Name: name,
+                Email: email,
                 Gender: genderValue,
-                'Joining Date': row['Joining Date '] || row['Joining Date'],
-                'Joining Month': row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'],
-                Education: row['Education'] || row['Students Level'],
-                House: row['Students House'] || row['House'],
-                Team: row['Team '] || row['Team'] || row['Leader'] || row['Team (AA)'],
-                School: row['School'] || row['SOP/SOB'],
-                'Student Type': row['Students OLD & NEW'] || row['Student Type'],
-                'Current Status': row['Status'] || row['Current Status'] || row['Students Status'],
+                'Joining Date': joiningDate,
+                'Joining Month': joiningMonth,
+                Education: education,
+                House: house,
+                Team: team,
+                School: school,
+                'Student Type': studentType,
+                'Current Status': status,
                 'Is In Campus': isInCampus,
-                'Dropout Date': row['Dropout Date'],
-                Address: row['Address'],
-                'Local Area': row['Local Area'] || row['Locak Area'] || row['LocalArea'],
-                'Panchayat/city': row['Panchayat / City'] || row['Panchayat/city'] || row['City'],
-                Phone: row['Student Phone Number '] || row['Phone'] || row['Contact Number 1'],
-                'Parent Info': `${row['Faather Name '] || ''} / ${row['Parents Phone number '] || ''}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
-                Feedback: row['Feedback Update'] || row['Where is improvement needed?'] || ''
+                'Dropout Date': row['Dropout Date'] || '',
+                Address: address,
+                'Local Area': localArea,
+                'Panchayat/city': panchayat,
+                Phone: phone,
+                'Parent Info': `${fatherName} / ${parentPhone}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
+                Feedback: feedback,
+                Course: course
               };
-            }).filter(s => s.Name && s.Name !== 'Unknown' && s.Name.toLowerCase() !== 'name');
+            }).filter(s => s.Name && s.Name !== 'Unknown' && s.Name.toLowerCase() !== 'name' && s.Name.length > 1);
 
             if (mappedData.length > 0) {
               setStudents(mappedData);
             } else {
-              setError("No valid student data found in the CSV.");
+              setError(`No valid student data found. Raw records: ${results.data.length}, Mapped: ${mappedData.length}`);
             }
           } else {
             setError("No data found in the CSV. Please check the structure.");

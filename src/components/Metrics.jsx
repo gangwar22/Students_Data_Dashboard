@@ -105,14 +105,14 @@ const Metrics = ({
             colorTheme="emerald"
           />
           <MetricCard
-            title="Boys"
-            value={filteredBoysCount}
+            title="Active Boys"
+            value={activeBoysCount}
             icon={<User className="w-6 h-6 text-blue-500" />}
             colorTheme="blue"
           />
           <MetricCard
-            title="Girls"
-            value={filteredGirlsCount}
+            title="Active Girls"
+            value={activeGirlsCount}
             icon={<GraduationCap className="w-6 h-6 text-pink-500" />}
             colorTheme="purple"
           />
