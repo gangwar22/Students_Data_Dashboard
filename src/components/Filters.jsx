@@ -9,6 +9,8 @@ const Filters = ({
   setSearchQuery,
   filterMonth,
   setFilterMonth,
+  filterYear,
+  setFilterYear,
   filterHouse,
   setFilterHouse,
   filterStatus,
@@ -30,6 +32,8 @@ const Filters = ({
   setFilterDropoutYear = () => {},
   dropoutYearOptions = [],
   uniqueMonths,
+  uniqueYears = [],
+  allMonths = [],
   uniqueHouses,
   uniqueStatuses,
   uniqueTeams,
@@ -89,17 +93,31 @@ const Filters = ({
         </div>
 
         {!isEnglishDashboard && !isPlacementDashboard && !isDropoutDashboard && (
-          <div className="relative group">
-            <label className="block text-[11px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Joining Month</label>
-            <select
-              className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-b-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
-            >
-              <option value="">All Months</option>
-              {uniqueMonths.map(month => <option key={month} value={month}>{month}</option>)}
-            </select>
-          </div>
+          <>
+            <div className="relative group">
+              <label className="block text-[11px] font-black text-blue-500 dark:text-blue-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Joining Month</label>
+              <select
+                className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 focus:border-b-blue-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+              >
+                <option value="">All Months</option>
+                {(allMonths && allMonths.length > 0 ? allMonths : uniqueMonths).map(month => <option key={month} value={month}>{month}</option>)}
+              </select>
+            </div>
+
+            <div className="relative group">
+              <label className="block text-[11px] font-black text-emerald-500 dark:text-emerald-400 uppercase tracking-widest mb-2.5 ml-1 drop-shadow-sm group-hover:translate-x-1 transition-transform">Joining Year</label>
+              <select
+                className="w-full px-6 py-4 bg-slate-100/50 dark:bg-slate-900/50 border-b-2 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-2xl focus:ring-4 focus:ring-emerald-500/10 focus:border-b-emerald-500 outline-none transition-all font-bold appearance-none cursor-pointer"
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+              >
+                <option value="">All Years</option>
+                {uniqueYears.map(year => <option key={year} value={year}>{year}</option>)}
+              </select>
+            </div>
+          </>
         )}
 
         {isPlacementDashboard && (

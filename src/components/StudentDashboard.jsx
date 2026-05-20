@@ -159,6 +159,23 @@ const getMonthToken = (dateText) => {
   return '';
 };
 
+// Helper function to convert month abbreviations to full month names
+const getFullMonthName = (monthToken) => {
+  if (!monthToken) return '';
+  const monthMap = {
+    'Jan': 'January', 'Feb': 'February', 'Mar': 'March', 'Apr': 'April',
+    'May': 'May', 'Jun': 'June', 'Jul': 'July', 'Aug': 'August',
+    'Sep': 'September', 'Oct': 'October', 'Nov': 'November', 'Dec': 'December'
+  };
+  return monthMap[monthToken] || monthToken;
+};
+
+// All months in chronological order for dropdown display
+const ALL_MONTHS = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
 const DEFAULT_ENGLISH_MONTHS = [
   { id: 'dec2026', label: 'December 2026', gid: '0' },
   { id: 'nov2026', label: 'November 2026', gid: '0' },
@@ -206,6 +223,7 @@ const StudentDashboard = () => {
   const [filterPlacementSop, setFilterPlacementSop] = useState('');
   const [filterPlacementSob, setFilterPlacementSob] = useState('');
   const [filterDropoutYear, setFilterDropoutYear] = useState('all');
+  const [filterYear, setFilterYear] = useState('');
 
   const updateGid = (id, newGid) => {
     const updated = englishMonths.map(m => m.id === id ? { ...m, gid: newGid } : m);
@@ -248,6 +266,7 @@ const StudentDashboard = () => {
     setFilterPlacementSop('');
     setFilterPlacementSob('');
     setFilterDropoutYear('all');
+    setFilterYear('');
   };
 
   const handleSync = () => {
@@ -499,14 +518,18 @@ const StudentDashboard = () => {
 
       let allMappedData = [];
 
-      texts.forEach(text => {
+      texts.forEach((text, sheetIdx) => {
         let lines = text.split(/\r?\n/);
-        const headerIdx = lines.findIndex(line => {
+        
+        // Dropout sheets have headers at line 0, but need to skip empty rows at the end
+        const headerRowIdx = lines.findIndex(line => {
           const lower = line.toLowerCase();
-          return (lower.includes('student') || lower.includes('name')) && (lower.includes('dropout') || lower.includes('reason') || lower.includes('date'));
+          return (lower.includes('name') || lower.includes('sr') || lower.includes('no')) && 
+                 (lower.includes('dropout') || lower.includes('date') || lower.includes('reason'));
         });
-        if (headerIdx !== -1) {
-          lines = lines.slice(headerIdx);
+        
+        if (headerRowIdx !== -1) {
+          lines = lines.slice(headerRowIdx);
         }
 
         const parsed = Papa.parse(lines.join('\n'), {
@@ -518,42 +541,62 @@ const StudentDashboard = () => {
 
         if (parsed.data && parsed.data.length > 0) {
           const mappedData = parsed.data.map(row => {
-            const name = pickFirstValue(row, ['Student', 'Student Name', 'Name', 'Student name']);
-            const dropoutDate = pickFirstValue(row, ['Date of leaving', 'Dropout Date', 'Date of Leaving', 'Left Date']);
-            const reason = pickFirstValue(row, ['Reason for leaving', 'Reason', 'Dropout Reason']);
-            const specify = pickFirstValue(row, ['Specify', 'Specify reason']);
+            // Extract data with proper column name variations
+            const name = pickFirstValue(row, ['Name ', 'Name', 'Student', 'Student Name', 'Student name']);
+            const email = pickFirstValue(row, ['Email id', 'Email ID', 'Email', 'Mail ID']);
+            
+            // Dropout Date column - handles different formats
+            const dropoutDate = pickFirstValue(row, ['Dropout Date', 'Date of leaving', 'Date of Leaving', 'Left Date']);
+            
+            // Reason columns
+            const reason = pickFirstValue(row, ['Reason', 'Reason for leaving', 'Dropout Reason']);
+            const specify = pickFirstValue(row, ['Specify', 'Specify reason', 'Specification']);
+            
+            // Extract year from dropout date
             const year = extractPlacementYear(dropoutDate);
+            
+            // Gender handling - accounts for typo "Gander"
+            const gender = pickFirstValue(row, ['Gender', 'Gander', 'Gender ']);
+            
+            // Joining date
+            const joiningDate = pickFirstValue(row, ['Joining Date ', 'Joining Date', 'Date of joining', 'Date of joining Campus']);
+            
+            // Month extraction
+            const joiningMonth = pickFirstValue(row, ['Dropout Month', 'Job Month', 'Joinning Month', 'Joining Month']) || getMonthToken(dropoutDate);
 
             return {
               ...row,
               Name: name || 'Unknown',
-              'Email': pickFirstValue(row, ['Email id', 'Mail ID', 'Email']),
+              'Email': email,
               'Dropout Date': dropoutDate,
               'Reason for leaving': reason,
               'Reason': reason,
               'Specify': specify,
               'Job Year': year, 
-              Year: year,
-              Gender: pickFirstValue(row, ['Gender', 'Gander']),
-              'Joining Date': pickFirstValue(row, ['Date of joining Campus', 'Date of joining', 'Joining Date']),
-              'Joining Month': pickFirstValue(row, ['Job Month', 'Joinning Month', 'Joining Month']) || getMonthToken(dropoutDate),
-              Education: pickFirstValue(row, ['Course', 'Academic Module', 'Educational Qualification', 'Students Level']),
-              House: pickFirstValue(row, ['School', 'House', 'Students House']),
-              School: pickFirstValue(row, ['School', 'SOP/SOB']),
+              'Year': year,
+              'Gender': gender,
+              'Joining Date': joiningDate,
+              'Joining Month': joiningMonth,
+              'Education': pickFirstValue(row, ['Course', 'Academic Module', 'Educational Qualification', 'Students Level', 'Dropout time Module ']),
+              'House': pickFirstValue(row, ['School', 'House', 'Students House']),
+              'School': pickFirstValue(row, ['School', 'SOP/SOB']),
               'Student Type': pickFirstValue(row, ['Academic Module', 'Course', 'Students OLD & NEW']),
               'Current Status': 'Dropout',
-              Address: pickFirstValue(row, ['Location', 'Address']),
+              'Address': pickFirstValue(row, ['Stusents Address', 'Location', 'Address']),
               'Local Area': pickFirstValue(row, ['Local Area', 'Locak Area', 'LocalArea']),
               'Panchayat/city': pickFirstValue(row, ['Panchayat / City', 'Panchayat/city', 'City']),
-              Phone: pickFirstValue(row, ['Contact number', 'Contact Number', 'Student Phone Number ']),
+              'Phone': pickFirstValue(row, ['Mobile Number', 'Contact number', 'Contact Number', 'Student Phone Number ']),
               'Parent Info': `${pickFirstValue(row, ['Faather Name ', 'Father Name'])} / ${pickFirstValue(row, ['Parents Phone number ', 'Parent Phone'])}`.trim().replace(/^[/ ]+|[/ ]+$/g, ''),
-              Feedback: row['Feedback Update'] || row['Where is improvement needed?'] || ''
+              'Feedback': row['Feedback Update'] || row['Where is improvement needed?'] || ''
             };
           }).filter(s => (
             s.Name &&
             s.Name !== 'Unknown' &&
-            !['student', 'student name', 'name', 's no'].includes(s.Name.toLowerCase())
+            s.Name.toLowerCase() !== 'name' &&
+            s.Name.length > 1 &&
+            !['sr', 'no', 's no', 'sr no'].includes(s.Name.toLowerCase())
           ));
+          
           allMappedData = [...allMappedData, ...mappedData];
         }
       });
@@ -620,7 +663,14 @@ const StudentDashboard = () => {
               // Handle both SOP/SOB and Main sheet column names
               const name = (row['Name '] || row['Name'] || row['Name  '] || '').trim() || 'Unknown';
               const joiningDate = row['Joining Date '] || row['Joining Date'] || '';
-              const joiningMonth = row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'] || '';
+              let joiningMonth = row['Joinning Month'] || row['Joinning Month '] || row['Joining Month'] || '';
+              
+              // If joiningMonth is not in columns, extract from joiningDate
+              if (!joiningMonth && joiningDate) {
+                const monthToken = getMonthToken(joiningDate);
+                joiningMonth = getFullMonthName(monthToken);
+              }
+              
               const house = row['Students House'] || row['House'] || '';
               const team = row['Team '] || row['Team'] || row['Leader'] || row['Team (AA)'] || '';
               const status = row['Status'] || row['Current Status'] || row['Students Status'] || '';
@@ -636,6 +686,7 @@ const StudentDashboard = () => {
               const parentPhone = row['Parents Phone number '] || row['Parent Phone'] || '';
               const feedback = row['Feedback Update'] || row['Where is improvement needed?'] || '';
               const course = row['Course'] || '';
+              const joiningYear = extractPlacementYear(joiningDate);
 
               return {
                 Name: name,
@@ -643,6 +694,7 @@ const StudentDashboard = () => {
                 Gender: genderValue,
                 'Joining Date': joiningDate,
                 'Joining Month': joiningMonth,
+                'Joining Year': joiningYear,
                 Education: education,
                 House: house,
                 Team: team,
@@ -745,11 +797,16 @@ const StudentDashboard = () => {
            (student['Job Year'] && String(student['Job Year']).includes(filterDropoutYear)))
         : true;
 
+      // Year matching for main sheet (main, sop, sob)
+      const matchYear = (activeTab.id === 'main' || activeTab.id === 'sop' || activeTab.id === 'sob') && filterYear
+        ? student['Joining Year'] === filterYear
+        : true;
+
       return matchSearch && matchMonth && matchHouse && matchStatus && matchTeam && matchLevel && 
-             matchPlacementBatch && matchPlacementSop && matchPlacementSob && matchDropoutYear;
+             matchPlacementBatch && matchPlacementSop && matchPlacementSob && matchDropoutYear && matchYear;
     });
   }, [students, searchQuery, filterMonth, filterHouse, filterStatus, filterTeam, filterOverallLevel, activeTab.id, 
-      filterPlacementBatch, filterPlacementSop, filterPlacementSob, filterDropoutYear]);
+      filterPlacementBatch, filterPlacementSop, filterPlacementSob, filterDropoutYear, filterYear]);
 
   // Derived Metrics
   const isEnglishDashboard = activeTab.id === 'english';
@@ -836,6 +893,7 @@ const StudentDashboard = () => {
   const uniqueMentors = isEnglishDashboard ? [...new Set(students.map(s => s.Mentor).filter(Boolean))].sort() : [];
   const uniqueLevels = isEnglishDashboard ? [...new Set(students.map(s => s['Over All Level']).filter(Boolean))].sort() : [];
   const uniqueMonths = !isEnglishDashboard && !isPlacementDashboard && !isDropoutDashboard ? [...new Set(students.map(s => s['Joining Month']).filter(Boolean))].sort() : [];
+  const uniqueYears = !isEnglishDashboard && !isPlacementDashboard && !isDropoutDashboard ? [...new Set(students.map(s => s['Joining Year']).filter(Boolean))].sort() : [];
   const uniqueHouses = [...new Set(students.map(s => s.House).filter(Boolean))].sort();
   const uniqueStatuses = [...new Set(students.map(s => s['Current Status']).filter(Boolean))].sort();
   const uniqueTeams = [...new Set(students.map(s => s.Team).filter(Boolean))].sort();
@@ -1029,7 +1087,11 @@ const StudentDashboard = () => {
             filterDropoutYear={filterDropoutYear}
             setFilterDropoutYear={setFilterDropoutYear}
             dropoutYearOptions={['2022', '2023', '2024', '2025', '2026']}
+            filterYear={filterYear}
+            setFilterYear={setFilterYear}
             uniqueMonths={uniqueMonths}
+            uniqueYears={uniqueYears}
+            allMonths={ALL_MONTHS}
             uniqueHouses={uniqueHouses}
             uniqueStatuses={uniqueStatuses}
             uniqueTeams={uniqueTeams}
