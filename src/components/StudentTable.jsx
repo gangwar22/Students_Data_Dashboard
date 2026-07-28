@@ -40,10 +40,48 @@ const getLevelDot = (level) => {
   return 'bg-slate-500 shadow-[0_0_8px_rgba(100,116,139,0.8)] dark:bg-slate-400';
 };
 
+const normalizeKey = (value) => String(value || '')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
+
+const getFirstAvailable = (student, keys) => {
+  if (!student) return '';
+
+  for (const key of keys) {
+    const value = student[key];
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+
+  const normalizedMap = new Map();
+  Object.entries(student).forEach(([rawKey, rawValue]) => {
+    const normalized = normalizeKey(rawKey);
+    const value = String(rawValue ?? '').trim();
+    if (!normalized || !value || normalizedMap.has(normalized)) return;
+    normalizedMap.set(normalized, value);
+  });
+
+  for (const key of keys) {
+    const target = normalizeKey(key);
+    if (!target) continue;
+    if (normalizedMap.has(target)) return normalizedMap.get(target);
+
+    const looseKey = [...normalizedMap.keys()].find((existing) => (
+      target.length >= 4 && existing.includes(target)
+    ));
+    if (looseKey) return normalizedMap.get(looseKey);
+  }
+
+  return '';
+};
+
 const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false, isDropoutDashboard = false }) => {
   const isEnglishData = students.length > 0 && students[0].Reading !== undefined;
   const isPlacementData = isPlacementDashboard;
   const isDropoutData = isDropoutDashboard;
+  const columnCount = isPlacementData ? 7 : 5;
   
   return (
     <div className="bg-white/70 dark:bg-slate-800/80 backdrop-blur-2xl rounded-[2rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.1),0_6px_0_rgba(203,213,225,0.7)] dark:shadow-[0_15px_40px_-15px_rgba(0,0,0,0.5),0_6px_0_rgba(30,41,59,0.7)] border-t-2 border-l-2 border-white/80 dark:border-slate-700/80 mt-8 overflow-hidden transition-colors duration-300">
@@ -68,9 +106,10 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false,
                 </>
               ) : isPlacementData ? (
                 <>
-                  <th className="p-6 font-black whitespace-nowrap">Company</th>
                   <th className="p-6 font-black whitespace-nowrap">Salary Offered</th>
-                  <th className="p-6 font-black whitespace-nowrap">Spent Time in NavGurukul</th>
+                  <th className="p-6 font-black whitespace-nowrap">Company</th>
+                  <th className="p-6 font-black whitespace-nowrap">Job Year</th>
+                  <th className="p-6 font-black whitespace-nowrap">Job Month</th>
                 </>
               ) : isDropoutData ? (
                 <>
@@ -91,7 +130,7 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false,
           <tbody className="divide-y-[3px] divide-slate-100/80 dark:divide-slate-700/50">
             {students.length === 0 ? (
               <tr>
-                <td colSpan={isPlacementData || isDropoutData ? 5 : 5} className="p-16 text-center bg-slate-50/30 dark:bg-slate-800/30">
+                <td colSpan={columnCount} className="p-16 text-center bg-slate-50/30 dark:bg-slate-800/30">
                   <div className="flex flex-col items-center justify-center text-slate-400 dark:text-slate-500">
                     <div className="w-20 h-20 bg-white dark:bg-slate-700/50 rounded-3xl flex items-center justify-center mb-5 border-b-4 border-slate-200 dark:border-slate-600 shadow-[0_5px_15px_rgba(0,0,0,0.05)] transform rotate-3">
                       <SearchX className="w-10 h-10 text-slate-400 dark:text-slate-500" />
@@ -154,31 +193,34 @@ const StudentTable = ({ students, onSelectStudent, isPlacementDashboard = false,
                       </>
                     ) : isPlacementData ? (
                       <>
-                        <td className="p-5 min-w-[180px]">
+                        <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
+                          {getFirstAvailable(student, ['Salary offered', 'Salary Offered', 'Offered Salary', 'Salary', 'CTC', 'Stipend']) || '-'}
+                        </td>
+                        <td className="p-5 min-w-[190px]">
                           <div className="text-[15px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm truncate">
-                            {student.Company || '-'}
+                            {getFirstAvailable(student, ['Company', 'Company Name', 'Organization', 'Organisation', 'Placed Company']) || '-'}
                           </div>
                         </td>
                         <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
-                          {student['Salary offered'] || '-'}
+                          {getFirstAvailable(student, ['Job Year', 'Year', 'Batch']) || '-'}
                         </td>
                         <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
-                          {student['Spent time in NavGurukul'] || student['Spent Days in NavGurukul'] || '-'}
+                          {getFirstAvailable(student, ['Job Month', 'Joining Month']) || '-'}
                         </td>
                       </>
                     ) : isDropoutData ? (
                       <>
                         <td className="p-5 text-[15px] font-black text-slate-600 dark:text-slate-400 drop-shadow-sm whitespace-nowrap">
-                          {student['Dropout Date'] || student['Date of leaving'] || '-'}
+                          {getFirstAvailable(student, ['Dropout Date', 'Date of leaving', 'Date of Leaving', 'Left Date']) || '-'}
                         </td>
-                        <td className="p-5 max-w-[150px]">
-                          <div className="text-[14px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm truncate" title={student['Specify'] || student['Specify reason']}>
-                            {student['Specify'] || student['Specify reason'] || '-'}
+                        <td className="p-5 max-w-[180px]">
+                          <div className="text-[14px] font-black text-slate-700 dark:text-slate-300 drop-shadow-sm truncate" title={getFirstAvailable(student, ['Specify reason', 'Specify', 'Specification', 'Reason for leaving', 'Reason', 'Dropout Reason'])}>
+                            {getFirstAvailable(student, ['Specify reason', 'Specify', 'Specification', 'Reason for leaving', 'Reason', 'Dropout Reason']) || '-'}
                           </div>
                         </td>
-                        <td className="p-5 max-w-[200px]">
-                          <div className="text-[14px] font-bold text-slate-500 dark:text-slate-400 line-clamp-1 leading-tight" title={student['Reason for leaving'] || student['Reason']}>
-                            {student['Reason for leaving'] || student['Reason'] || '-'}
+                        <td className="p-5 max-w-[250px]">
+                          <div className="text-[14px] font-bold text-slate-600 dark:text-slate-400 line-clamp-2 leading-snug" title={getFirstAvailable(student, ['Reason for leaving', 'Reason', 'Dropout Reason', 'Specify reason', 'Specify'])}>
+                            {getFirstAvailable(student, ['Reason for leaving', 'Reason', 'Dropout Reason', 'Specify reason', 'Specify']) || '-'}
                           </div>
                         </td>
                       </>

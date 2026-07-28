@@ -243,27 +243,36 @@ const DashboardCharts = ({ students, isEnglishData, isPlacementData = false, isD
                   </linearGradient>
                 ))}
               </defs>
-              <Pie
-                data={isDropoutData ? (() => {
+              {(() => {
+                const pieData = isDropoutData ? (() => {
                   const genderCounts = students.reduce((acc, s) => {
-                    const g = (s.Gender || 'Other').trim();
-                    acc[g] = (acc[g] || 0) + 1;
+                    const rawG = (s.Gender || '').trim().toLowerCase();
+                    let label = 'Other';
+                    if (rawG === 'f' || rawG === 'female' || rawG === 'girls' || rawG === 'girl') label = 'Girls';
+                    else if (rawG === 'm' || rawG === 'male' || rawG === 'boys' || rawG === 'boy') label = 'Boys';
+                    acc[label] = (acc[label] || 0) + 1;
                     return acc;
                   }, {});
                   return Object.keys(genderCounts).map(g => ({ name: g, value: genderCounts[g] }));
-                })() : statusData}
-                cx="50%"
-                cy="40%"
-                innerRadius={70}
-                outerRadius={100}
-                paddingAngle={8}
-                dataKey="value"
-                stroke="none"
-              >
-                {statusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={`url(#pieGrad-${index % COLORS.length})`} style={{ filter: 'drop-shadow(0px 8px 10px rgba(0,0,0,0.2))' }}/>
-                ))}
-              </Pie>
+                })() : statusData;
+
+                return (
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="40%"
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={8}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={`url(#pieGrad-${index % COLORS.length})`} style={{ filter: 'drop-shadow(0px 8px 10px rgba(0,0,0,0.2))' }}/>
+                    ))}
+                  </Pie>
+                );
+              })()}
               <Tooltip content={<CustomTooltip />} />
               <Legend 
                 verticalAlign="bottom" 

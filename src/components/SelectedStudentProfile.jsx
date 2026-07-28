@@ -18,6 +18,31 @@ const SelectedStudentProfile = ({
     .replace(/[^a-z0-9]+/g, ' ')
     .trim();
 
+  const getDetailValue = (keys) => {
+    for (const key of keys) {
+      const exactValue = selectedStudent[key];
+      if (exactValue !== undefined && exactValue !== null && String(exactValue).trim() !== '') {
+        return String(exactValue).trim();
+      }
+    }
+
+    const normalizedEntries = Object.entries(selectedStudent)
+      .map(([k, v]) => ({ key: normalizeDetailKey(k), value: String(v ?? '').trim() }))
+      .filter((item) => item.key && item.value !== '');
+
+    for (const key of keys) {
+      const target = normalizeDetailKey(key);
+      if (!target) continue;
+      const exact = normalizedEntries.find((item) => item.key === target);
+      if (exact) return exact.value;
+
+      const loose = normalizedEntries.find((item) => target.length >= 4 && item.key.includes(target));
+      if (loose) return loose.value;
+    }
+
+    return '';
+  };
+
   const extraDetailsHiddenKeys = new Set([
     'name',
     'student',
@@ -134,6 +159,26 @@ const SelectedStudentProfile = ({
               { label: 'Student Type', value: selectedStudent['Student Type'] }
             ]}
           />
+          {(isPlacementRecord || isDropoutRecord) && (
+            <InfoCard
+              title={isPlacementRecord ? 'Placement Snapshot' : 'Dropout Snapshot'}
+              icon={<AlertCircle className="w-6 h-6 text-rose-500" />}
+              items={isPlacementRecord ? [
+                { label: 'Company', value: getDetailValue(['Company', 'Company Name', 'Organization', 'Organisation', 'Placed Company']), placeholder: 'N/A' },
+                { label: 'Salary', value: getDetailValue(['Salary offered', 'Salary Offered', 'Offered Salary', 'Salary', 'CTC', 'Stipend']), placeholder: 'N/A' },
+                { label: 'Job Year', value: getDetailValue(['Job Year', 'Year', 'Batch']), placeholder: 'N/A' },
+                { label: 'Placement Date', value: getDetailValue(['Date of leaving - Placed', 'Dropout Date', 'Date of leaving', 'Date of Leaving', 'Left Date']), placeholder: 'N/A' },
+                { label: 'Spent Time', value: getDetailValue(['Spent time in NavGurukul', 'Spent Days in NavGurukul', 'Time in NavGurukul', 'Duration in NavGurukul']), placeholder: 'N/A' },
+                { label: 'Type of Job', value: getDetailValue(['Type of job', 'Type of Job', 'Job Type', 'Work Type']), placeholder: 'N/A' }
+              ] : [
+                { label: 'Dropout Date', value: getDetailValue(['Dropout Date', 'Date of leaving', 'Date of Leaving', 'Left Date']), placeholder: 'N/A' },
+                { label: 'Year', value: getDetailValue(['Year', 'Job Year']), placeholder: 'N/A' },
+                { label: 'Specify', value: getDetailValue(['Specify', 'Specify reason', 'Specification']), placeholder: 'N/A' },
+                { label: 'Reason', value: getDetailValue(['Reason for leaving', 'Reason', 'Dropout Reason']), placeholder: 'N/A' },
+                { label: 'Feedback', value: getDetailValue(['Feedback', 'Feedback Update', 'Where is improvement needed?']), placeholder: 'N/A' }
+              ]}
+            />
+          )}
           <div className="space-y-8">
             <InfoCard
               title="Status & Dates"
